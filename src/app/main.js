@@ -39,13 +39,14 @@
 
       function parseMarkdownToJSON(content, fileName) {
         const lines = content.split("\n");
+        const fileStem = (fileName || "set").replace(/\.[^/.]+$/, "");
         const result = {
-          setName: fileName.replace(/\.[^/.]+$/, ""),
+          setName: fileStem,
           questions: [],
         };
 
         let currentQuestion = null;
-        let currentSubject = "Genel";
+        let canonicalSubject = fileStem;
         let capturingExplanation = false;
         let explanationLines = [];
         let awaitingQuestionText = false;
@@ -71,13 +72,16 @@
 
           const h1Match = normalizedLine.match(/^#\s+(.+)$/);
           if (h1Match) {
-            result.setName = h1Match[1].trim();
+            const h1Title = h1Match[1].trim();
+            if (canonicalSubject === fileStem) {
+              result.setName = h1Title;
+              canonicalSubject = h1Title;
+            }
             continue;
           }
 
           const h2Match = normalizedLine.match(/^##\s+(.+)$/);
           if (h2Match) {
-            currentSubject = h2Match[1].trim();
             continue;
           }
 
@@ -87,7 +91,6 @@
 
           const konuMatch = normalizedLine.match(/^#{0,3}\s*Konu:\s*(.+)$/i);
           if (konuMatch) {
-            currentSubject = konuMatch[1].trim();
             continue;
           }
 
@@ -116,7 +119,7 @@
               options: [],
               correct: -1,
               explanation: "",
-              subject: currentSubject,
+              subject: canonicalSubject,
             };
             capturingExplanation = false;
             explanationLines = [];

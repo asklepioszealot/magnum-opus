@@ -9,17 +9,18 @@ if (process.argv.length < 4) {
 
 const inputFile = process.argv[2];
 const outputFile = process.argv[3];
+const fileStem = path.parse(inputFile).name;
 
 const content = fs.readFileSync(inputFile, 'utf-8');
-const lines = content.split('\n');
+const lines = content.split(/\r?\n/);
 
 const result = {
-    setName: "İsimsiz Set",
+    setName: fileStem,
     questions: []
 };
 
 let currentQuestion = null;
-let currentSubject = "Genel";
+let canonicalSubject = fileStem;
 let capturingExplanation = false;
 let explanationLines = [];
 let awaitingQuestionText = false;
@@ -34,10 +35,19 @@ for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     const normalizedLine = line.replace(/^\*\*(.*?)\*\*$/, '$1').trim();
-    
-    const titleMatch = normalizedLine.match(/^#{1,6}\s+(.+)$/);
-    if (titleMatch) {
-        result.setName = titleMatch[1].trim();
+
+    const h1Match = normalizedLine.match(/^#\s+(.+)$/);
+    if (h1Match) {
+        const h1Title = h1Match[1].trim();
+        if (canonicalSubject === fileStem) {
+            result.setName = h1Title;
+            canonicalSubject = h1Title;
+        }
+        continue;
+    }
+
+    const h2Match = normalizedLine.match(/^##\s+(.+)$/);
+    if (h2Match) {
         continue;
     }
 
@@ -47,7 +57,6 @@ for (let i = 0; i < lines.length; i++) {
     
     const konuMatch = normalizedLine.match(/^#{0,3}\s*Konu:\s*(.+)$/i);
     if (konuMatch) {
-        currentSubject = konuMatch[1].trim();
         continue;
     }
     
@@ -69,7 +78,7 @@ for (let i = 0; i < lines.length; i++) {
             options: [],
             correct: -1,
             explanation: "",
-            subject: currentSubject
+            subject: canonicalSubject
         };
         capturingExplanation = false;
         explanationLines = [];
@@ -89,7 +98,7 @@ for (let i = 0; i < lines.length; i++) {
         continue;
     }
     
-    const correctMatch = normalizedLine.match(/^Doğru\s*Cevap:\s*([A-Ea-e])\b/i);
+    const correctMatch = normalizedLine.match(/^Do(?:ğ|g)ru\s*Cevap:\s*([A-Ea-e])\b/i);
     if (correctMatch) {
         const correctChar = correctMatch[1].toUpperCase();
         if (currentQuestion) {
@@ -98,7 +107,7 @@ for (let i = 0; i < lines.length; i++) {
         continue;
     }
     
-    const explanationStartMatch = normalizedLine.match(/^Açıklama:\s*(.*)$/i);
+    const explanationStartMatch = normalizedLine.match(/^(?:Açıklama|Aciklama):\s*(.*)$/i);
     if (explanationStartMatch) {
         capturingExplanation = true;
         let expText = explanationStartMatch[1].trim();
