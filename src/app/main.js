@@ -671,17 +671,17 @@
           '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Kan Transfüzyonu - Test Çıktısı</title>';
         html += "<style>";
         html +=
-          'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #134252; line-height: 1.6; }';
+          'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #21302a; line-height: 1.6; }';
         html +=
           ".question { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; page-break-inside: avoid; }";
         html +=
-          ".q-num { font-weight: 700; color: #218085; margin-bottom: 8px; }";
+          ".q-num { font-weight: 700; color: #2f7a56; margin-bottom: 8px; }";
         html += ".q-text { font-size: 16px; margin-bottom: 12px; }";
         html += ".option { padding: 4px 0; }";
         html += ".option.correct { color: #059669; font-weight: 600; }";
         html +=
-          ".explanation { margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 6px; font-size: 14px; border-left: 3px solid #218085; }";
-        html += "h1 { text-align: center; color: #218085; }";
+          ".explanation { margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 6px; font-size: 14px; border-left: 3px solid #2f7a56; }";
+        html += "h1 { text-align: center; color: #2f7a56; }";
         html += "@media print { .question { border: 1px solid #ccc; } }";
         html += "</style></head><body><h1>Kan Transfüzyonu - Test</h1>";
 
