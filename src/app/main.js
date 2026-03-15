@@ -26,6 +26,17 @@
         return "mc_" + hash;
       }
 
+      function getExplanationHtml(question) {
+        if (
+          question &&
+          typeof question.explanation === "string" &&
+          question.explanation.trim()
+        ) {
+          return question.explanation;
+        }
+        return '<span class="highlight-important">⚠️ Açıklama bulunamadı.</span>';
+      }
+
       function parseMarkdownToJSON(content, fileName) {
         const lines = content.split("\n");
         const result = {
@@ -58,9 +69,15 @@
           if (!line) continue;
           const normalizedLine = line.replace(/^\*\*(.*?)\*\*$/, "$1").trim();
 
-          const titleMatch = normalizedLine.match(/^#{1,6}\s+(.+)$/);
-          if (titleMatch) {
-            result.setName = titleMatch[1].trim();
+          const h1Match = normalizedLine.match(/^#\s+(.+)$/);
+          if (h1Match) {
+            result.setName = h1Match[1].trim();
+            continue;
+          }
+
+          const h2Match = normalizedLine.match(/^##\s+(.+)$/);
+          if (h2Match) {
+            currentSubject = h2Match[1].trim();
             continue;
           }
 
@@ -122,7 +139,7 @@
           }
 
           const correctMatch = normalizedLine.match(
-            /^Doğru\s*Cevap:\s*([A-Ea-e])\b/i,
+            /^Do(?:ğ|g)ru\s*Cevap:\s*([A-Ea-e])\b/i,
           );
           if (correctMatch) {
             const correctChar = correctMatch[1].toUpperCase();
@@ -133,7 +150,7 @@
           }
 
           const explanationStartMatch = normalizedLine.match(
-            /^Açıklama:\s*(.*)$/i,
+            /^(?:Açıklama|Aciklama):\s*(.*)$/i,
           );
           if (explanationStartMatch) {
             capturingExplanation = true;
@@ -180,10 +197,36 @@
             }
 
             const setId = file.name.replace(/\.[^/.]+$/, "");
+            const normalizedQuestions = Array.isArray(data.questions)
+              ? data.questions
+                  .filter(
+                    (question) =>
+                      question &&
+                      typeof question === "object" &&
+                      !Array.isArray(question),
+                  )
+                  .map((question) => ({
+                    q: typeof question.q === "string" ? question.q : "",
+                    options: Array.isArray(question.options)
+                      ? question.options.filter((option) => typeof option === "string")
+                      : [],
+                    correct: Number.isInteger(question.correct)
+                      ? question.correct
+                      : -1,
+                    explanation:
+                      typeof question.explanation === "string"
+                        ? question.explanation
+                        : "",
+                    subject:
+                      typeof question.subject === "string" && question.subject.trim()
+                        ? question.subject
+                        : "Genel",
+                  }))
+              : [];
 
             loadedSets[setId] = {
               setName: data.setName || file.name,
-              questions: data.questions || [],
+              questions: normalizedQuestions,
               fileName: file.name,
             };
 
@@ -474,7 +517,7 @@
           `Soru ${currentQuestionIndex + 1} / ${filteredQuestions.length}`;
         document.getElementById("subject-badge").textContent = q.subject;
         document.getElementById("solution-content").innerHTML =
-          q.explanation.replace(/<br>/g, "<br>");
+          getExplanationHtml(q).replace(/<br>/g, "<br>");
 
         const optionsContainer = document.getElementById("options-container");
         optionsContainer.innerHTML = "";
@@ -622,17 +665,6 @@
         displayQuestion();
       }
 
-      function exportQuestions() {
-        const dataStr = JSON.stringify(allQuestions, null, 2);
-        const dataBlob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "kan-transfuzyonu-test.json";
-        link.click();
-        URL.revokeObjectURL(url);
-      }
-
       function exportPrintable() {
         const printWindow = window.open("", "_blank");
         let html =
@@ -673,7 +705,7 @@
           });
           html +=
             '<div class="explanation">' +
-            q.explanation.replace(/<br>/g, "<br>") +
+            getExplanationHtml(q).replace(/<br>/g, "<br>") +
             "</div>";
           html += "</div>";
         });
