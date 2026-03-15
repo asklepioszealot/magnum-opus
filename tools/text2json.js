@@ -57,6 +57,7 @@ for (let i = 0; i < lines.length; i++) {
     
     const konuMatch = normalizedLine.match(/^#{0,3}\s*Konu:\s*(.+)$/i);
     if (konuMatch) {
+        if (currentQuestion) currentQuestion.subject = konuMatch[1].trim();
         continue;
     }
     
