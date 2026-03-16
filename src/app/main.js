@@ -672,7 +672,7 @@
       function exportPrintable() {
         const printWindow = window.open("", "_blank");
         let html =
-          '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Kan Transfüzyonu - Test Çıktısı</title>';
+          '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Çoktan Seçmeli Test - Test Çıktısı</title>';
         html += "<style>";
         html +=
           'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #21302a; line-height: 1.6; }';
@@ -687,7 +687,7 @@
           ".explanation { margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 6px; font-size: 14px; border-left: 3px solid #2f7a56; }";
         html += "h1 { text-align: center; color: #2f7a56; }";
         html += "@media print { .question { border: 1px solid #ccc; } }";
-        html += "</style></head><body><h1>Kan Transfüzyonu - Test</h1>";
+        html += "</style></head><body><h1>Çoktan Seçmeli Test</h1>";
 
         allQuestions.forEach((q, i) => {
           const labels = ["A", "B", "C", "D", "E"];
