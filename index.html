@@ -58,7 +58,7 @@
       }
 
       .container {
-        max-width: 1200px;
+        max-width: 1320px;
         margin: 0 auto;
       }
 
@@ -233,7 +233,7 @@
       }
 
       .question-counter {
-        font-size: 18px;
+        font-size: 22px;
         font-weight: 600;
         color: var(--color-text-primary);
       }
@@ -252,13 +252,14 @@
         background: var(--color-bg-secondary);
         border-radius: 16px;
         padding: 40px;
-        margin-bottom: 30px;
+        margin: 0 auto 30px;
+        max-width: 1210px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
         border: 1px solid var(--color-border);
       }
 
       .question-text {
-        font-size: 21px;
+        font-size: 25px;
         line-height: 1.6;
         margin-bottom: 30px;
         color: var(--color-text-primary);
@@ -344,9 +345,10 @@
         display: none;
         background: var(--color-bg-primary);
         border-radius: 12px;
-        padding: 25px;
+        padding: 30px;
         border: 2px solid var(--color-accent);
         margin-top: 20px;
+        min-height: 216px;
       }
 
       .solution.visible {
@@ -354,7 +356,7 @@
       }
 
       .solution-title {
-        font-size: 17px;
+        font-size: 20px;
         font-weight: 700;
         color: var(--color-accent);
         margin-bottom: 15px;
@@ -362,7 +364,7 @@
       }
 
       .solution-content {
-        font-size: 17px;
+        font-size: 20px;
         line-height: 1.8;
         color: var(--color-text-primary);
       }
@@ -408,10 +410,22 @@
         }
 
         .question-card {
-          padding: 25px;
+          padding: 30px;
         }
 
         .question-text {
+          font-size: 22px;
+        }
+
+        .question-counter {
+          font-size: 20px;
+        }
+
+        .solution-title {
+          font-size: 18px;
+        }
+
+        .solution-content {
           font-size: 18px;
         }
 
@@ -707,13 +721,6 @@
         <div class="header-left">
           <h1>Çoktan Seçmeli Test</h1>
           <p>
-            <button
-              class="btn btn-small btn-secondary"
-              onclick="showSetManager()"
-              style="margin-right: 15px; padding: 4px 10px"
-            >
-              ← Setlere Dön
-            </button>
             Dr. Ahmet Kara 🩺 <span>|</span> Çoktan seçmeli sorularla konunun
             önemli noktalarını gözden geçirin.
           </p>
@@ -744,6 +751,10 @@
             </label>
             <span>🌙</span>
           </div>
+
+          <button class="btn btn-small btn-secondary" onclick="showSetManager()">
+            ← Setlere Dön
+          </button>
 
           <button
             class="btn-secondary btn btn-small"
