@@ -105,7 +105,7 @@
       }
 
       .header-controls > * {
-        flex-shrink: 1;
+        flex-shrink: 0;
       }
 
       select,
@@ -127,12 +127,18 @@
       .header-controls select {
         min-width: 190px;
         max-width: 260px;
+        flex-shrink: 1;
       }
 
       .header-controls input[type="number"] {
         width: 90px;
         min-width: 90px;
         max-width: 90px;
+        flex-shrink: 1;
+      }
+
+      .header-controls .btn {
+        white-space: nowrap;
       }
 
       .btn {
@@ -421,6 +427,42 @@
       [data-theme="dark"] .highlight-important {
         color: var(--color-emphasis);
         font-weight: 400;
+      }
+
+      @media (max-width: 1280px) and (min-width: 769px) {
+        .header {
+          gap: 14px;
+          padding: 16px;
+        }
+
+        .header-left h1 {
+          font-size: 26px;
+        }
+
+        .header-left p {
+          font-size: 14px;
+        }
+
+        .header-controls {
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .header-controls select {
+          min-width: 170px;
+          max-width: 220px;
+        }
+
+        .header-controls input[type="number"] {
+          width: 82px;
+          min-width: 82px;
+          max-width: 82px;
+        }
+
+        .btn-small {
+          padding: 6px 11px;
+          font-size: 11px;
+        }
       }
 
       @media (max-width: 768px) {
@@ -760,10 +802,7 @@
       <div class="header">
         <div class="header-left">
           <h1>Çoktan Seçmeli Test</h1>
-          <p>
-            Dr. Ahmet Kara 🩺 <span>|</span> Çoktan seçmeli sorularla konunun
-            önemli noktalarını gözden geçirin.
-          </p>
+          <p>Dr. Ahmet Kara 🩺</p>
         </div>
         <div class="header-controls">
           <select id="topic-select" onchange="filterByTopic()">
