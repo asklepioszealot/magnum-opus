@@ -350,12 +350,28 @@
             : selectedSets.has(setId);
 
           let solvedCount = 0;
+          let correctCount = 0;
+          let wrongCount = 0;
+          const totalQuestions = Array.isArray(setObj.questions)
+            ? setObj.questions.length
+            : 0;
+
           setObj.questions.forEach((q, index) => {
             const questionKey = cardId(q, setId, index);
             if (selectedAnswers[questionKey] !== undefined) {
               solvedCount++;
+              if (selectedAnswers[questionKey] === q.correct) {
+                correctCount++;
+              } else {
+                wrongCount++;
+              }
             }
           });
+
+          const progressPercent =
+            totalQuestions > 0
+              ? Math.round((solvedCount / totalQuestions) * 100)
+              : 0;
 
           const markup = `
             <div class="set-item">
@@ -363,7 +379,7 @@
                 <input type="checkbox" ${isSelected ? "checked" : ""} onclick="event.stopPropagation(); toggleSetCheck('${setId}')">
                 <div class="set-info">
                   <div class="set-name">${setObj.setName}</div>
-                  <div class="set-stats">📚 ${setObj.questions.length} Soru | ✅ Çözülen: ${solvedCount}</div>
+                  <div class="set-stats">📚 ${totalQuestions} Soru | 📊 İlerleme: ${solvedCount}/${totalQuestions} (%${progressPercent}) | ✅ ${correctCount} ❌ ${wrongCount}</div>
                 </div>
               </div>
               <button class="delete-btn-circle" title="Seti kaldır" onclick="deleteSet('${setId}')">-</button>
@@ -899,12 +915,12 @@
       function updateScoreDisplay() {
         let correct = 0;
         let wrong = 0;
-        let total = 0;
+        let answered = 0;
 
         allQuestions.forEach((q) => {
           const cid = cardId(q);
           if (selectedAnswers[cid] !== undefined) {
-            total++;
+            answered++;
             if (selectedAnswers[cid] === q.correct) {
               correct++;
             } else {
@@ -913,25 +929,31 @@
           }
         });
 
-        const scoreEl = document.getElementById("score-display");
+      const scoreEl = document.getElementById("score-display");
         if (!scoreEl) return;
-        if (total === 0) {
+        if (answered === 0) {
           scoreEl.textContent = "";
           return;
         }
-        const pct = Math.round((correct / total) * 100);
+        const progressPct =
+          allQuestions.length > 0
+            ? Math.round((answered / allQuestions.length) * 100)
+            : 0;
+        const accuracyPct = Math.round((correct / answered) * 100);
         scoreEl.innerHTML =
           "✅ " +
           correct +
           " &nbsp; ❌ " +
           wrong +
           " &nbsp; 📊 " +
-          total +
+          answered +
           "/" +
           allQuestions.length +
           " (%" +
-          pct +
-          ")";
+          progressPct +
+          ")" +
+          " &nbsp; 🎯 %" +
+          accuracyPct;
       }
 
       function migrateLegacyAssessmentsIfNeeded() {
