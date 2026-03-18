@@ -13,17 +13,46 @@
       let questionOrder = [];
       let selectedAnswers = {};
       let solutionVisible = {};
+      let pendingSession = null;
       const storage = window.AppStorage;
 
-      function cardId(q) {
+      function buildQuestionKey(setId, question, index) {
+        const normalizedSetId = String(setId ?? "unknown");
+        const questionIdValue =
+          question && question.id !== undefined && question.id !== null
+            ? String(question.id).trim()
+            : "";
+        if (questionIdValue.length > 0) {
+          return `set:${normalizedSetId}::id:${questionIdValue}`;
+        }
+        return `set:${normalizedSetId}::idx:${index}`;
+      }
+
+      function legacyCardId(q) {
         let hash = 0;
-        const text = q.q + (q.subject || "");
+        const questionText = q && typeof q.q === "string" ? q.q : "";
+        const questionSubject =
+          q && typeof q.subject === "string" ? q.subject : "";
+        const text = questionText + questionSubject;
         for (let i = 0; i < text.length; i++) {
           const char = text.charCodeAt(i);
           hash = (hash << 5) - hash + char;
           hash = hash & hash;
         }
         return "mc_" + hash;
+      }
+
+      function cardId(q, fallbackSetId, fallbackIndex) {
+        if (q && typeof q.__questionKey === "string" && q.__questionKey.length > 0) {
+          return q.__questionKey;
+        }
+        if (typeof fallbackSetId === "string" && Number.isInteger(fallbackIndex)) {
+          return buildQuestionKey(fallbackSetId, q, fallbackIndex);
+        }
+        if (q && typeof q.__setId === "string" && Number.isInteger(q.__setIndex)) {
+          return buildQuestionKey(q.__setId, q, q.__setIndex);
+        }
+        return legacyCardId(q);
       }
 
       function getExplanationHtml(question) {
@@ -225,6 +254,11 @@
                       typeof question.subject === "string" && question.subject.trim()
                         ? question.subject
                         : "Genel",
+                    id:
+                      typeof question.id === "string" ||
+                      typeof question.id === "number"
+                        ? question.id
+                        : null,
                   }))
               : [];
 
@@ -316,8 +350,9 @@
             : selectedSets.has(setId);
 
           let solvedCount = 0;
-          setObj.questions.forEach((q) => {
-            if (selectedAnswers[cardId(q)] !== undefined) {
+          setObj.questions.forEach((q, index) => {
+            const questionKey = cardId(q, setId, index);
+            if (selectedAnswers[questionKey] !== undefined) {
               solvedCount++;
             }
           });
@@ -466,9 +501,20 @@
 
         allQuestions = [];
         for (const setId of selectedSets) {
-          if (loadedSets[setId]) {
-            allQuestions.push(...loadedSets[setId].questions);
-          }
+          const setData = loadedSets[setId];
+          if (!setData || !Array.isArray(setData.questions)) continue;
+          setData.questions.forEach((question, index) => {
+            const clonedQuestion = { ...question };
+            clonedQuestion.__setId = setId;
+            clonedQuestion.__setIndex = index;
+            clonedQuestion.__questionKey = buildQuestionKey(setId, question, index);
+            allQuestions.push(clonedQuestion);
+          });
+        }
+
+        if (allQuestions.length === 0) {
+          alert("Seçili setlerde soru bulunamadı.");
+          return;
         }
 
         filteredQuestions = [...allQuestions];
@@ -480,9 +526,29 @@
 
         populateTopicFilter();
         updateScoreDisplay();
-        if (filteredQuestions.length > 0) {
-          displayQuestion();
+
+        const session = pendingSession || {};
+        const topicSelect = document.getElementById("topic-select");
+        if (
+          topicSelect &&
+          typeof session.selectedTopic === "string" &&
+          [...topicSelect.options].some(
+            (option) => option.value === session.selectedTopic,
+          )
+        ) {
+          topicSelect.value = session.selectedTopic;
         }
+
+        filterByTopic(false, {
+          preferredQuestionKey:
+            session && typeof session.currentQuestionKey === "string"
+              ? session.currentQuestionKey
+              : null,
+          fallbackIndex:
+            session && Number.isInteger(session.currentQuestionIndex)
+              ? session.currentQuestionIndex
+              : null,
+        });
       }
 
       function showSetManager() {
@@ -491,7 +557,7 @@
         renderSetList();
       }
 
-      function filterByTopic() {
+      function filterByTopic(resetIndex = true, options = {}) {
         const selectedTopic = document.getElementById("topic-select").value;
 
         if (selectedTopic === "hepsi") {
@@ -503,13 +569,63 @@
         }
 
         questionOrder = [...Array(filteredQuestions.length).keys()];
-        currentQuestionIndex = 0;
+
+        let restoredIndex = 0;
+        if (resetIndex) {
+          currentQuestionIndex = 0;
+        } else {
+          const preferredQuestionKey = options.preferredQuestionKey;
+          const fallbackIndex = Number.isInteger(options.fallbackIndex)
+            ? options.fallbackIndex
+            : null;
+
+          if (
+            typeof preferredQuestionKey === "string" &&
+            preferredQuestionKey.length > 0
+          ) {
+            const matchedIndex = questionOrder.findIndex((questionIndex) => {
+              const question = filteredQuestions[questionIndex];
+              return cardId(question) === preferredQuestionKey;
+            });
+            if (matchedIndex >= 0) {
+              restoredIndex = matchedIndex;
+            } else if (fallbackIndex !== null) {
+              restoredIndex = Math.min(
+                Math.max(fallbackIndex, 0),
+                Math.max(filteredQuestions.length - 1, 0),
+              );
+            }
+          } else if (fallbackIndex !== null) {
+            restoredIndex = Math.min(
+              Math.max(fallbackIndex, 0),
+              Math.max(filteredQuestions.length - 1, 0),
+            );
+          }
+        }
+        if (!resetIndex) {
+          currentQuestionIndex = restoredIndex;
+        }
 
         document
           .getElementById("jump-input")
           .setAttribute("max", filteredQuestions.length);
 
-        displayQuestion();
+        if (filteredQuestions.length > 0) {
+          displayQuestion();
+          return;
+        }
+
+        document.getElementById("question-text").innerHTML =
+          "Bu filtrede gösterilecek soru bulunamadı.";
+        document.getElementById("question-counter").textContent = "Soru 0 / 0";
+        document.getElementById("subject-badge").textContent = selectedTopic;
+        document.getElementById("solution-content").innerHTML = "";
+        document.getElementById("options-container").innerHTML = "";
+        document.getElementById("solution").classList.remove("visible");
+        document.getElementById("show-solution-btn").textContent = "Çözümü Göster";
+        document.getElementById("prev-btn").disabled = true;
+        document.getElementById("next-btn").disabled = true;
+        saveState();
       }
 
       function displayQuestion() {
@@ -818,11 +934,67 @@
           ")";
       }
 
+      function migrateLegacyAssessmentsIfNeeded() {
+        const legacyToModernMap = new Map();
+        Object.entries(loadedSets).forEach(([setId, setObj]) => {
+          if (!setObj || !Array.isArray(setObj.questions)) return;
+          setObj.questions.forEach((question, index) => {
+            const legacyKey = legacyCardId(question);
+            const modernKey = buildQuestionKey(setId, question, index);
+            if (!legacyToModernMap.has(legacyKey)) {
+              legacyToModernMap.set(legacyKey, new Set());
+            }
+            legacyToModernMap.get(legacyKey).add(modernKey);
+          });
+        });
+
+        const migrateMap = (sourceMap) => {
+          const normalizedMap =
+            sourceMap && typeof sourceMap === "object" && !Array.isArray(sourceMap)
+              ? sourceMap
+              : {};
+          const migratedMap = { ...normalizedMap };
+          let changed = false;
+
+          Object.entries(normalizedMap).forEach(([key, value]) => {
+            if (typeof key !== "string" || key.startsWith("set:")) return;
+            const matches = legacyToModernMap.get(key);
+            if (!matches || matches.size === 0) return;
+            changed = true;
+            matches.forEach((modernKey) => {
+              if (!(modernKey in migratedMap)) {
+                migratedMap[modernKey] = value;
+              }
+            });
+          });
+
+          return { migratedMap, changed };
+        };
+
+        const selectedAnswersMigration = migrateMap(selectedAnswers);
+        const solutionVisibleMigration = migrateMap(solutionVisible);
+        if (selectedAnswersMigration.changed) {
+          selectedAnswers = selectedAnswersMigration.migratedMap;
+        }
+        if (solutionVisibleMigration.changed) {
+          solutionVisible = solutionVisibleMigration.migratedMap;
+        }
+        return (
+          selectedAnswersMigration.changed || solutionVisibleMigration.changed
+        );
+      }
+
       function saveState() {
         try {
+          const activeQuestion =
+            filteredQuestions.length > 0
+              ? filteredQuestions[questionOrder[currentQuestionIndex]]
+              : null;
+          const topicSelect = document.getElementById("topic-select");
           const sessionState = {
             currentQuestionIndex: currentQuestionIndex,
-            selectedTopic: document.getElementById("topic-select").value,
+            currentQuestionKey: activeQuestion ? cardId(activeQuestion) : null,
+            selectedTopic: topicSelect ? topicSelect.value : "hepsi",
           };
           storage.setItem("mc_session", JSON.stringify(sessionState));
 
@@ -851,20 +1023,33 @@
           const savedAssessments = storage.getItem("mc_assessments");
           if (savedAssessments) {
             const state = JSON.parse(savedAssessments);
-            selectedAnswers = state.selectedAnswers || {};
-            solutionVisible = state.solutionVisible || {};
+            selectedAnswers =
+              state && typeof state.selectedAnswers === "object"
+                ? state.selectedAnswers
+                : {};
+            solutionVisible =
+              state && typeof state.solutionVisible === "object"
+                ? state.solutionVisible
+                : {};
           }
 
           const savedSession = storage.getItem("mc_session");
+          pendingSession = null;
           if (savedSession) {
             const session = JSON.parse(savedSession);
-            currentQuestionIndex = session.currentQuestionIndex || 0;
-            const topic = session.selectedTopic || "hepsi";
-            const topicSelect = document.getElementById("topic-select");
-            if (topicSelect) {
-              topicSelect.value = topic;
-              filterByTopic();
+            if (session && typeof session === "object") {
+              pendingSession = session;
             }
+          }
+
+          if (migrateLegacyAssessmentsIfNeeded()) {
+            storage.setItem(
+              "mc_assessments",
+              JSON.stringify({
+                selectedAnswers: selectedAnswers,
+                solutionVisible: solutionVisible,
+              }),
+            );
           }
         } catch (e) {
           console.error("State loading error", e);

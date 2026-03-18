@@ -9,7 +9,8 @@ Bu proje, doktorlar ve tıp öğrencileri için (başta TUS ve USMLE olmak üzer
    - Birden fazla seti aynı anda seçip harmanlayarak veya ayrı ayrı filtreleyerek çözme imkanı sağlar.
 2. **Kişiselleştirilmiş Öğrenme ve İlerleme Takibi**:
    - Girdiğiniz cevaplar (doğru, yanlış, seçilmemiş) tarayıcı önbelleğinde (`localStorage`) güvende tutulur.
-   - Soru setini silseniz dahi, aynı seti tekrar yüklediğinizde uygulamadaki ilerlemeniz kaldığı yerden devam eder (Sorular metin tabanlı hash'lenerek akıllıca tanınır).
+   - Soru setini silseniz dahi, aynı seti tekrar yüklediğinizde uygulamadaki ilerlemeniz kaldığı yerden devam eder (soru kimliği set-bazlı tutulur; aynı soru farklı setlerde birbirini ezmez).
+   - Uygulama, kaldığınız soru ve konu filtresini doğru şekilde geri yükler; eski `mc_...` anahtarlar otomatik migrate edilerek mevcut veriler korunur.
    - "Yanlışları Çöz" butonuyla sadece hata yaptığınız soruları ayıklayıp tekrar çözebilirsiniz.
 3. **Kapsamlı Konu Filtresi & Karıştırma**:
    - Yüklediğiniz setlerdeki sorular "Konu" başlıklarına göre otomatik olarak filtre seçeneklerine dahil olur.
