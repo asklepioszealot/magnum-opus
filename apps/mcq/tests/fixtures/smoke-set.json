@@ -1,0 +1,12 @@
+{
+  "setName": "Smoke Test Set",
+  "questions": [
+    {
+      "q": "2 + 2 kaçtır?",
+      "options": ["3", "4", "5"],
+      "correct": 1,
+      "explanation": "Doğru cevap 4'tür.",
+      "subject": "Genel"
+    }
+  ]
+}
