@@ -15,6 +15,15 @@
       let solutionVisible = {};
       let pendingSession = null;
       const storage = window.AppStorage;
+      const storageKeys = storage.keys;
+      const SESSION_KEY = storageKeys.key("session");
+      const ASSESSMENTS_KEY = storageKeys.key("assessments");
+      const LOADED_SETS_KEY = storageKeys.key("loaded_sets");
+      const SELECTED_SETS_KEY = storageKeys.key("selected_sets");
+
+      function getSetStorageKey(setId) {
+        return storageKeys.key("set", setId);
+      }
 
       function buildQuestionKey(setId, question, index) {
         const normalizedSetId = String(setId ?? "unknown");
@@ -269,10 +278,7 @@
             };
 
             saveSetsList();
-            storage.setItem(
-              "mc_set_" + setId,
-              JSON.stringify(loadedSets[setId]),
-            );
+            storage.writeJson(getSetStorageKey(setId), loadedSets[setId]);
           } catch (e) {
             console.error("Set okuma hatası:", e);
             alert(file.name + " okunamadı. Dosya formatı uyumlu değil.");
@@ -284,14 +290,8 @@
       }
 
       function saveSetsList() {
-        storage.setItem(
-          "mc_loaded_sets",
-          JSON.stringify(Object.keys(loadedSets)),
-        );
-        storage.setItem(
-          "mc_selected_sets",
-          JSON.stringify([...selectedSets]),
-        );
+        storage.writeJson(LOADED_SETS_KEY, Object.keys(loadedSets));
+        storage.writeJson(SELECTED_SETS_KEY, [...selectedSets]);
       }
 
       function renderSetList() {
@@ -428,7 +428,7 @@
           delete loadedSets[setId];
           selectedSets.delete(setId);
           removeCandidateSets.delete(setId);
-          storage.removeItem("mc_set_" + setId);
+          storage.removeItem(getSetStorageKey(setId));
         });
         if (removed.length === 0) return;
         lastRemovedSets = removed;
@@ -495,7 +495,7 @@
         if (!lastRemovedSets || lastRemovedSets.length === 0) return;
         lastRemovedSets.forEach((entry) => {
           loadedSets[entry.setId] = entry.setData;
-          storage.setItem("mc_set_" + entry.setId, JSON.stringify(entry.setData));
+          storage.writeJson(getSetStorageKey(entry.setId), entry.setData);
           if (entry.wasSelected) {
             selectedSets.add(entry.setId);
           }
@@ -1018,16 +1018,13 @@
             currentQuestionKey: activeQuestion ? cardId(activeQuestion) : null,
             selectedTopic: topicSelect ? topicSelect.value : "hepsi",
           };
-          storage.setItem("mc_session", JSON.stringify(sessionState));
+          storage.writeJson(SESSION_KEY, sessionState);
 
           const assessmentState = {
             selectedAnswers: selectedAnswers,
             solutionVisible: solutionVisible,
           };
-          storage.setItem(
-            "mc_assessments",
-            JSON.stringify(assessmentState),
-          );
+          storage.writeJson(ASSESSMENTS_KEY, assessmentState);
         } catch (e) {
           console.error("State saving error", e);
         }
@@ -1042,9 +1039,8 @@
             storageKey: "quiz-theme",
           });
 
-          const savedAssessments = storage.getItem("mc_assessments");
-          if (savedAssessments) {
-            const state = JSON.parse(savedAssessments);
+          const state = storage.readJson(ASSESSMENTS_KEY);
+          if (state) {
             selectedAnswers =
               state && typeof state.selectedAnswers === "object"
                 ? state.selectedAnswers
@@ -1055,23 +1051,17 @@
                 : {};
           }
 
-          const savedSession = storage.getItem("mc_session");
           pendingSession = null;
-          if (savedSession) {
-            const session = JSON.parse(savedSession);
-            if (session && typeof session === "object") {
-              pendingSession = session;
-            }
+          const session = storage.readJson(SESSION_KEY);
+          if (session && typeof session === "object") {
+            pendingSession = session;
           }
 
           if (migrateLegacyAssessmentsIfNeeded()) {
-            storage.setItem(
-              "mc_assessments",
-              JSON.stringify({
-                selectedAnswers: selectedAnswers,
-                solutionVisible: solutionVisible,
-              }),
-            );
+            storage.writeJson(ASSESSMENTS_KEY, {
+              selectedAnswers: selectedAnswers,
+              solutionVisible: solutionVisible,
+            });
           }
         } catch (e) {
           console.error("State loading error", e);
@@ -1116,22 +1106,20 @@
       // İlk yüklendiğinde set listesini localStorage'dan getir
       function initApp() {
         try {
-          const storedSets = storage.getItem("mc_loaded_sets");
-          const storedSelected = storage.getItem("mc_selected_sets");
+          const storedSets = storage.readJson(LOADED_SETS_KEY);
+          const storedSelected = storage.readJson(SELECTED_SETS_KEY);
 
-          if (storedSets) {
-            const setIds = JSON.parse(storedSets);
-            setIds.forEach((id) => {
-              const setData = storage.getItem("mc_set_" + id);
+          if (Array.isArray(storedSets)) {
+            storedSets.forEach((id) => {
+              const setData = storage.readJson(getSetStorageKey(id));
               if (setData) {
-                loadedSets[id] = JSON.parse(setData);
+                loadedSets[id] = setData;
               }
             });
           }
 
-          if (storedSelected) {
-            const selArray = JSON.parse(storedSelected);
-            selectedSets = new Set(selArray.filter((id) => loadedSets[id]));
+          if (Array.isArray(storedSelected)) {
+            selectedSets = new Set(storedSelected.filter((id) => loadedSets[id]));
           }
         } catch (e) {
           console.error("Cache load error", e);

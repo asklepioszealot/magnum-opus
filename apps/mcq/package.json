@@ -4,10 +4,12 @@
   "description": "Doktorlar ve tıp öğrencileri için lokal çalışan, JSON tabanlı çoktan seçmeli test uygulaması.",
   "main": "index.js",
   "scripts": {
+    "dev": "npm run build:dist && npx tauri dev",
     "build:dist": "node build.mjs",
     "build:desktop": "npx tauri build --bundles nsis",
     "release": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/build-release.ps1",
     "release:no-legacy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/build-release.ps1 -NoLegacyCopy",
+    "release:with-legacy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/build-release.ps1",
     "validate:set": "node ./tools/validate-set.js",
     "validate:set:strict": "node ./tools/validate-set.js --require-files",
     "test:smoke": "npx playwright test",

@@ -1,9 +1,16 @@
       // ═══ STATE ═══
-      const SESSION_KEY = "fc_session";
-      const SETS_KEY = "fc_loaded_sets";
-      const ASSESSMENTS_KEY = "fc_assessments";
-      const AUTO_ADVANCE_KEY = "fc_auto_advance";
       const storage = window.AppStorage;
+      const storageKeys = storage.keys;
+      const SESSION_KEY = storageKeys.key("session");
+      const SETS_KEY = storageKeys.key("loaded_sets");
+      const SELECTED_SETS_KEY = storageKeys.key("selected_sets");
+      const ASSESSMENTS_KEY = storageKeys.key("assessments");
+      const AUTO_ADVANCE_KEY = storageKeys.key("auto_advance");
+      const LEGACY_STATE_KEY = storage.rawKeys.versionedKey("flashcards_state", 6);
+
+      function getSetStorageKey(setId) {
+        return storageKeys.key("set", setId);
+      }
       
       let loadedSets = {};
       let selectedSets = new Set();
@@ -128,15 +135,7 @@
         
         populateTopicFilter();
         
-        let session = null;
-        const sessRaw = storage.getItem(SESSION_KEY);
-        if (sessRaw) {
-          try {
-            session = JSON.parse(sessRaw);
-          } catch (error) {
-            session = null;
-          }
-        }
+        const session = storage.readJson(SESSION_KEY);
         if (session && session.topic) {
           document.getElementById("topic-select").value = session.topic;
         }
@@ -359,7 +358,7 @@
             };
             selectedSets.add(setId);
 
-            storage.setItem("fc_set_" + setId, JSON.stringify(loadedSets[setId]));
+            storage.writeJson(getSetStorageKey(setId), loadedSets[setId]);
           } catch (e) {
             alert(file.name + " yüklenirken hata oluştu. Geçerli bir JSON dosyası seçtiğinizden emin olun.");
           }
@@ -408,7 +407,7 @@
           delete loadedSets[setId];
           selectedSets.delete(setId);
           removeCandidateSets.delete(setId);
-          storage.removeItem("fc_set_" + setId);
+          storage.removeItem(getSetStorageKey(setId));
         });
 
         if (removed.length === 0) return;
@@ -476,7 +475,7 @@
         if (!lastRemovedSets || lastRemovedSets.length === 0) return;
         lastRemovedSets.forEach((entry) => {
           loadedSets[entry.setId] = entry.setData;
-          storage.setItem("fc_set_" + entry.setId, JSON.stringify(entry.setData));
+          storage.writeJson(getSetStorageKey(entry.setId), entry.setData);
           if (entry.wasSelected) {
             selectedSets.add(entry.setId);
           }
@@ -494,9 +493,9 @@
       }
 
       function saveSetsList() {
-        storage.setItem(SETS_KEY, JSON.stringify(Object.keys(loadedSets)));
+        storage.writeJson(SETS_KEY, Object.keys(loadedSets));
         const selectedArr = Array.from(selectedSets);
-        storage.setItem("fc_selected_sets", JSON.stringify(selectedArr));
+        storage.writeJson(SELECTED_SETS_KEY, selectedArr);
       }
 
       function renderSetList() {
@@ -654,7 +653,7 @@
       }
 
       function saveState() {
-        storage.setItem(ASSESSMENTS_KEY, JSON.stringify(assessments));
+        storage.writeJson(ASSESSMENTS_KEY, assessments);
         storage.setItem(AUTO_ADVANCE_KEY, autoAdvanceEnabled ? "1" : "0");
 
         const activeCard =
@@ -669,7 +668,7 @@
           activeFilter,
           autoAdvanceEnabled,
         };
-        storage.setItem(SESSION_KEY, JSON.stringify(session));
+        storage.writeJson(SESSION_KEY, session);
       }
 
       function loadState() {
@@ -682,51 +681,43 @@
           }
 
           let hasModernAssessments = false;
-          const assRaw = storage.getItem(ASSESSMENTS_KEY);
-          if (assRaw) {
-            const parsedAssessments = JSON.parse(assRaw);
-            if (
-              parsedAssessments &&
-              typeof parsedAssessments === "object" &&
-              !Array.isArray(parsedAssessments)
-            ) {
-              assessments = parsedAssessments;
-              hasModernAssessments = true;
-            }
+          const parsedAssessments = storage.readJson(ASSESSMENTS_KEY);
+          if (
+            parsedAssessments &&
+            typeof parsedAssessments === "object" &&
+            !Array.isArray(parsedAssessments)
+          ) {
+            assessments = parsedAssessments;
+            hasModernAssessments = true;
           }
 
           // Backward compatibility migration from legacy state:
           // only use legacy when modern key is missing.
           if (!hasModernAssessments) {
-            const legacyStateRaw = storage.getItem("flashcards_state_v6");
-            if (legacyStateRaw) {
-              const legacyState = JSON.parse(legacyStateRaw);
-              if (
-                legacyState &&
-                legacyState.assessments &&
-                typeof legacyState.assessments === "object" &&
-                !Array.isArray(legacyState.assessments)
-              ) {
-                assessments = legacyState.assessments;
-                storage.setItem(ASSESSMENTS_KEY, JSON.stringify(assessments));
-              }
+            const legacyState = storage.readJson(LEGACY_STATE_KEY);
+            if (
+              legacyState &&
+              legacyState.assessments &&
+              typeof legacyState.assessments === "object" &&
+              !Array.isArray(legacyState.assessments)
+            ) {
+              assessments = legacyState.assessments;
+              storage.writeJson(ASSESSMENTS_KEY, assessments);
             }
           }
 
-          const setsRaw = storage.getItem(SETS_KEY);
-          if (setsRaw) {
-            const setIds = JSON.parse(setsRaw);
+          const setIds = storage.readJson(SETS_KEY, []);
+          if (Array.isArray(setIds)) {
             setIds.forEach(id => {
-              const setRaw = storage.getItem("fc_set_" + id);
-              if (setRaw) {
-                loadedSets[id] = JSON.parse(setRaw);
+              const setData = storage.readJson(getSetStorageKey(id));
+              if (setData) {
+                loadedSets[id] = setData;
               }
             });
           }
           
-          const selRaw = storage.getItem("fc_selected_sets");
-          if (selRaw) {
-            const selIds = JSON.parse(selRaw);
+          const selIds = storage.readJson(SELECTED_SETS_KEY);
+          if (Array.isArray(selIds)) {
             selIds.forEach(id => { if (loadedSets[id]) selectedSets.add(id); });
           } else {
             // default all to selected
@@ -734,12 +725,11 @@
           }
 
           if (migrateLegacyAssessmentsIfNeeded()) {
-            storage.setItem(ASSESSMENTS_KEY, JSON.stringify(assessments));
+            storage.writeJson(ASSESSMENTS_KEY, assessments);
           }
 
-          const sessRaw = storage.getItem(SESSION_KEY);
-          if (sessRaw) {
-            const session = JSON.parse(sessRaw);
+          const session = storage.readJson(SESSION_KEY);
+          if (session) {
             if (session.theme === "dark") {
               window.ThemeManager.setThemeState(true, {
                 primaryToggleId: "theme-toggle",
