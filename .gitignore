@@ -1,3 +1,13 @@
 *.bundle
 node_modules/
 
+# App build and release artifacts
+apps/*/dist/
+apps/*/release/
+apps/*/playwright-report/
+apps/*/test-results/
+apps/*/src-tauri/target/
+
+# Tauri bundle outputs copied to app roots
+apps/*/*.msi
+apps/*/*.exe

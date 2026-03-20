@@ -70,14 +70,12 @@ npm run validate:set:mcq
 
 ## Dogrulanan Durum
 
-Phase A bootstrap sonrasinda asagidakiler kok workspace uzerinden dogrulandi:
+Phase A bootstrap sonrasinda bu branch uzerinde asagidakiler teyit edildi:
 
 - `npm run build:dist:flashcards`
 - `npm run build:dist:mcq`
 - `npm run test:flashcards`
 - `npm run test:mcq`
-- `npm run build:desktop:flashcards`
-- `npm run build:desktop:mcq`
 
 ## Sonraki Adimlar
 
