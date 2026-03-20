@@ -3,4 +3,6 @@
 
 const { runSetValidationCli } = require("../../../packages/shared-content/validate-set.cjs");
 
-runSetValidationCli();
+runSetValidationCli(process.argv.slice(2), {
+  requireQuestionExplanation: true,
+});

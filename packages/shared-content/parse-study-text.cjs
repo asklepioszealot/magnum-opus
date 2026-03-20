@@ -66,6 +66,7 @@ function parseStudyText(content, options = {}) {
 
     const h2Match = normalized.match(/^##\s+(.+)$/);
     if (h2Match) {
+      finalizeCurrentEntry();
       continue;
     }
 

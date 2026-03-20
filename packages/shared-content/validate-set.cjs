@@ -131,7 +131,8 @@ function parseMarkdownQuestions(content) {
   return questions;
 }
 
-function validateMcqJson(setJson, filePath, errors) {
+function validateMcqJson(setJson, filePath, errors, options = {}) {
+  const requireQuestionExplanation = options.requireQuestionExplanation === true;
   const questions = setJson.questions;
   if (!Array.isArray(questions) || questions.length === 0) {
     errors.push(`[${filePath}] 'questions' alani bos olamaz.`);
@@ -171,11 +172,15 @@ function validateMcqJson(setJson, filePath, errors) {
       errors.push(`${label}.correct gecerli bir secenek index'i olmali.`);
     }
 
-    if (
-      question.explanation !== undefined &&
-      typeof question.explanation !== "string"
-    ) {
+    if (question.explanation !== undefined && typeof question.explanation !== "string") {
       errors.push(`${label}.explanation metin olmali.`);
+    }
+
+    if (
+      requireQuestionExplanation &&
+      (typeof question.explanation !== "string" || !question.explanation.trim())
+    ) {
+      errors.push(`${label}.explanation zorunlu ve bos olmayan metin olmali.`);
     }
 
     if (question.subject !== undefined && typeof question.subject !== "string") {
@@ -218,7 +223,7 @@ function validateCardArray(cards, filePath, errors, sourceLabel) {
   return extractedQuestions;
 }
 
-function validateJsonSet(content, filePath, errors) {
+function validateJsonSet(content, filePath, errors, options = {}) {
   let parsed;
   try {
     parsed = JSON.parse(content);
@@ -241,7 +246,7 @@ function validateJsonSet(content, filePath, errors) {
   }
 
   if (Array.isArray(parsed.questions)) {
-    return validateMcqJson(parsed, filePath, errors);
+    return validateMcqJson(parsed, filePath, errors, options);
   }
 
   if (Array.isArray(parsed.cards)) {
@@ -268,7 +273,7 @@ function formatOccurrence(entry) {
   return `${entry.file} [${entry.source} #${entry.index + 1}]`;
 }
 
-function validateSetFiles(rawArgs = process.argv.slice(2)) {
+function validateSetFiles(rawArgs = process.argv.slice(2), options = {}) {
   let cliConfig;
   try {
     cliConfig = parseCliArgs(rawArgs);
@@ -321,7 +326,7 @@ function validateSetFiles(rawArgs = process.argv.slice(2)) {
 
     const questions =
       extension === ".json"
-        ? validateJsonSet(content, filePath, errors)
+        ? validateJsonSet(content, filePath, errors, options)
         : validateMarkdownSet(content, filePath, errors);
 
     questions.forEach((questionText, index) => {
@@ -387,8 +392,8 @@ function validateSetFiles(rawArgs = process.argv.slice(2)) {
   };
 }
 
-function runSetValidationCli(rawArgs = process.argv.slice(2)) {
-  const result = validateSetFiles(rawArgs);
+function runSetValidationCli(rawArgs = process.argv.slice(2), options = {}) {
+  const result = validateSetFiles(rawArgs, options);
   result.logs.forEach((line) => {
     if (line.startsWith("❌")) {
       console.error(line);
