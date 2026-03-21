@@ -1,0 +1,28 @@
+{
+  "name": "magnum-opus",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/flashcards",
+    "apps/mcq",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:flashcards": "npm run dev --workspace apps/flashcards",
+    "dev:mcq": "npm run dev --workspace apps/mcq",
+    "build:dist:flashcards": "npm run build:dist --workspace apps/flashcards",
+    "build:dist:mcq": "npm run build:dist --workspace apps/mcq",
+    "build:desktop:flashcards": "npm run build:desktop --workspace apps/flashcards",
+    "build:desktop:mcq": "npm run build:desktop --workspace apps/mcq",
+    "test:flashcards": "npm run test --workspace apps/flashcards",
+    "test:mcq": "npm run test --workspace apps/mcq",
+    "release:flashcards": "npm run release --workspace apps/flashcards",
+    "release:mcq": "npm run release --workspace apps/mcq",
+    "release:no-legacy:flashcards": "npm run release:no-legacy --workspace apps/flashcards",
+    "release:no-legacy:mcq": "npm run release:no-legacy --workspace apps/mcq",
+    "release:with-legacy:flashcards": "npm run release:with-legacy --workspace apps/flashcards",
+    "release:with-legacy:mcq": "npm run release:with-legacy --workspace apps/mcq",
+    "validate:set:flashcards": "npm run validate:set --workspace apps/flashcards",
+    "validate:set:mcq": "npm run validate:set --workspace apps/mcq"
+  }
+}
