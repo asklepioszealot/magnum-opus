@@ -1,14 +1,15 @@
 # Magnum Opus
 
-Magnum Opus is a desktop-first study workspace built as an npm monorepo. It contains multiple focused applications, shared packages, and release tooling in a single repository so the full workspace can be developed, tested, and shipped consistently.
+`magnum-opus`, `flashcards-app` ve `multiple-choices-test` projelerini tek Git deposunda toplayan Phase A monorepo'dur.
 
-## Repository Layout
+Bu fazda hedef, urun davranisini degistirmeden iki uygulamayi ayni workspace altinda calistirabilmek ve release/test hatlarini merkezi olarak yonetebilmektir.
+
+## Yapi
 
 ```text
 magnum-opus/
   apps/
     flashcards/
-    study-shell/
     mcq/
   packages/
     shared-build/
@@ -21,27 +22,24 @@ magnum-opus/
   docs/
 ```
 
-## Requirements
+## Onemli Not
 
-- Node.js and npm
-- Rust + Tauri prerequisites for desktop development and packaging
+Bu fazda kok dizinde bilerek `index.html` yoktur.
 
-## Workspace Notes
-
-The repository root is a workspace layer, not a web app entry point. There is intentionally no `index.html` at the root.
-
-App entry files live inside each application:
+Her uygulama kendi giris dosyasini korur:
 
 - `apps/flashcards/index.html`
 - `apps/mcq/index.html`
 
-## Install Dependencies
+Kok dizin, urun giris noktasi degil; workspace orkestrasyon katmanidir.
+
+## Workspace Komutlari
+
+Bagimliliklari kurmak icin:
 
 ```powershell
 npm install
 ```
-
-## Available Commands
 
 Flashcards:
 
@@ -51,16 +49,6 @@ npm run build:dist:flashcards
 npm run build:desktop:flashcards
 npm run test:flashcards
 npm run release:flashcards
-```
-
-Study Shell:
-
-```powershell
-npm run dev:study-shell
-npm run build:dist:study-shell
-npm run build:desktop:study-shell
-npm run test:study-shell
-npm run release:study-shell
 ```
 
 MCQ:
@@ -80,14 +68,18 @@ npm run validate:set:flashcards
 npm run validate:set:mcq
 ```
 
-## Shared Packages
+## Dogrulanan Durum
 
-- `shared-build`: build-time helpers used across apps
-- `shared-content`: shared content parsing and validation utilities
-- `shared-storage`: storage and persistence helpers
-- `shared-ui`: reusable UI/runtime helpers
+Phase A bootstrap sonrasinda bu branch uzerinde asagidakiler teyit edildi:
 
-## Tooling
+- `npm run build:dist:flashcards`
+- `npm run build:dist:mcq`
+- `npm run test:flashcards`
+- `npm run test:mcq`
 
-- `tooling/release`: release-oriented helpers and scripts
-- `tooling/scripts`: repository-level utility scripts
+## Sonraki Adimlar
+
+- Dusuk riskli ortak altyapilari `packages/` altina tasimak
+- Root release/test yardimci scriptlerini artirmak
+- Ortak icerik ve storage kontratlarini tanimlamak
+- Phase B icin `apps/study-shell` uygulamasini ayri bir katman olarak eklemek
