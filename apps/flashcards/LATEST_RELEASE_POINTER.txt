@@ -1,5 +1,10 @@
-latest_release_dir=D:\Git Projelerim\flashcards-app\release\20260316-003914_v0.1.0_be77efd
-portable_exe=D:\Git Projelerim\flashcards-app\release\20260316-003914_v0.1.0_be77efd\Pediatri_Flashcards_Portable_v0.1.0_be77efd.exe
-setup_exe=D:\Git Projelerim\flashcards-app\release\20260316-003914_v0.1.0_be77efd\Pediatri_Flashcards_Kurulum_v0.1.0_be77efd.exe
-build_id=0.1.0-be77efd-20260315213801
+format=magnum-release-pointer-v1
+app_path=apps/flashcards
+updated_at=2026-03-21T00:43:02.8906203+03:00
+latest_release_dir=release/20260321-004301_v0.1.0_7ca8ebd
+portable_exe=release/20260321-004301_v0.1.0_7ca8ebd/Pediatri_Flashcards_Portable_v0.1.0_7ca8ebd.exe
+setup_exe=release/20260321-004301_v0.1.0_7ca8ebd/Pediatri_Flashcards_Kurulum_v0.1.0_7ca8ebd.exe
+build_id=0.1.0-7ca8ebd-20260320214220
+portable_sha256=C60733C3637DDBD0AC579E7A90EE94DCAB6A750E16EBD4FAF1A23FBBCACE1852
+setup_sha256=EE91E4694B9688A57125B63A150D26D9ADD53A65FF6BC11EA0113E6290881409
 legacy_copy=False

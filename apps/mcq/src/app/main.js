@@ -20,6 +20,9 @@
       const ASSESSMENTS_KEY = storageKeys.key("assessments");
       const LOADED_SETS_KEY = storageKeys.key("loaded_sets");
       const SELECTED_SETS_KEY = storageKeys.key("selected_sets");
+      const SHELL_LAUNCH_KEY = storageKeys.key("shell_launch");
+      const SHELL_RETURN_PREVIEW_KEY = storageKeys.key("shell_return_preview");
+      const PENDING_NATIVE_SHELL_LAUNCH_KEY = "__MAGNUM_PENDING_STUDY_SHELL_LAUNCH__";
 
       function getSetStorageKey(setId) {
         return storageKeys.key("set", setId);
@@ -912,7 +915,7 @@
         displayQuestion();
       }
 
-      function updateScoreDisplay() {
+      function getAnswerCounts() {
         let correct = 0;
         let wrong = 0;
         let answered = 0;
@@ -929,15 +932,59 @@
           }
         });
 
+        return {
+          correct,
+          wrong,
+          answered,
+          total: allQuestions.length,
+        };
+      }
+
+      function buildShellReturnSummary() {
+        const counts = getAnswerCounts();
+        return {
+          headline: `${counts.answered}/${counts.total} soru çözüldü`,
+          detail: `Doğru ${counts.correct}, yanlış ${counts.wrong}`,
+          metrics: counts,
+        };
+      }
+
+      function refreshShellReturnBanner() {
+        if (
+          !window.McqShellLaunch ||
+          typeof window.McqShellLaunch.renderReturnBanner !== "function"
+        ) {
+          return null;
+        }
+
+        const container = document.getElementById("main-app");
+        if (!container) {
+          return null;
+        }
+
+        return window.McqShellLaunch.renderReturnBanner(
+          buildShellReturnSummary(),
+          { container },
+        );
+      }
+
+      function updateScoreDisplay() {
+        const counts = getAnswerCounts();
+        const correct = counts.correct;
+        const wrong = counts.wrong;
+        const answered = counts.answered;
+        const total = counts.total;
+
       const scoreEl = document.getElementById("score-display");
         if (!scoreEl) return;
         if (answered === 0) {
           scoreEl.textContent = "";
+          refreshShellReturnBanner();
           return;
         }
         const progressPct =
-          allQuestions.length > 0
-            ? Math.round((answered / allQuestions.length) * 100)
+          total > 0
+            ? Math.round((answered / total) * 100)
             : 0;
         const accuracyPct = Math.round((correct / answered) * 100);
         scoreEl.innerHTML =
@@ -948,12 +995,13 @@
           " &nbsp; 📊 " +
           answered +
           "/" +
-          allQuestions.length +
+          total +
           " (%" +
           progressPct +
           ")" +
           " &nbsp; 🎯 %" +
           accuracyPct;
+        refreshShellReturnBanner();
       }
 
       function migrateLegacyAssessmentsIfNeeded() {
@@ -1127,6 +1175,79 @@
 
         loadState();
         renderSetList();
+      }
+
+      function applyShellLaunchPayload(shellLaunchPayload) {
+        if (
+          shellLaunchPayload &&
+          window.McqShellLaunch &&
+          typeof window.McqShellLaunch.renderBanner === "function"
+        ) {
+          window.McqShellLaunch.renderBanner(shellLaunchPayload);
+        }
+
+        if (
+          shellLaunchPayload &&
+          window.McqShellLaunch &&
+          typeof window.McqShellLaunch.renderReturnBanner === "function"
+        ) {
+          window.McqShellLaunch.renderReturnBanner(
+            buildShellReturnSummary(),
+            { container: document.getElementById("main-app") },
+          );
+          return;
+        }
+
+        storage.removeItem(SHELL_RETURN_PREVIEW_KEY);
+      }
+
+      function applyNativeShellLaunchPayload(encodedPayload) {
+        if (
+          !window.McqShellLaunch ||
+          typeof window.McqShellLaunch.syncNative !== "function"
+        ) {
+          return null;
+        }
+
+        const shellLaunchPayload = window.McqShellLaunch.syncNative(
+          encodedPayload,
+        );
+        applyShellLaunchPayload(shellLaunchPayload);
+        return shellLaunchPayload;
+      }
+
+      function consumePendingNativeShellLaunch() {
+        const pendingLaunch = window[PENDING_NATIVE_SHELL_LAUNCH_KEY];
+        if (!pendingLaunch) {
+          return null;
+        }
+
+        delete window[PENDING_NATIVE_SHELL_LAUNCH_KEY];
+
+        const encodedPayload =
+          pendingLaunch && typeof pendingLaunch === "object"
+            ? pendingLaunch.encodedPayload
+            : pendingLaunch;
+        return applyNativeShellLaunchPayload(
+          typeof encodedPayload === "string" ? encodedPayload : "",
+        );
+      }
+
+      window.addEventListener("magnum-study-shell-launch", (event) => {
+        applyNativeShellLaunchPayload(
+          event && event.detail ? event.detail.encodedPayload : "",
+        );
+      });
+
+      const shellLaunchPayload =
+        window.McqShellLaunch &&
+        typeof window.McqShellLaunch.sync === "function"
+          ? window.McqShellLaunch.sync()
+          : storage.readJson(SHELL_LAUNCH_KEY);
+      if (shellLaunchPayload) {
+        applyShellLaunchPayload(shellLaunchPayload);
+      } else {
+        applyShellLaunchPayload(consumePendingNativeShellLaunch());
       }
 
       initApp();

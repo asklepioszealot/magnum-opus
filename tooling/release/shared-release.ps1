@@ -98,6 +98,77 @@ function Resolve-GitWorkTreeRoot {
   }
 }
 
+function Get-ReleaseRelativePath {
+  param(
+    [Parameter(Mandatory = $true)][string]$BasePath,
+    [Parameter(Mandatory = $true)][string]$TargetPath
+  )
+
+  $resolvedBasePath = (Resolve-Path $BasePath).Path
+  $resolvedTargetPath = (Resolve-Path $TargetPath).Path
+  $relativePath = [System.IO.Path]::GetRelativePath($resolvedBasePath, $resolvedTargetPath)
+  return $relativePath.Replace("\", "/")
+}
+
+function Get-CargoPackageName {
+  param(
+    [Parameter(Mandatory = $true)][string]$CargoTomlPath
+  )
+
+  if (-not (Test-Path $CargoTomlPath)) {
+    return $null
+  }
+
+  $inPackageSection = $false
+  foreach ($line in Get-Content -Path $CargoTomlPath) {
+    if ($line -match '^\s*\[(.+)\]\s*$') {
+      $inPackageSection = $Matches[1] -eq "package"
+      continue
+    }
+
+    if ($inPackageSection -and $line -match '^\s*name\s*=\s*"(?<name>[^"]+)"\s*$') {
+      return $Matches.name
+    }
+  }
+
+  return $null
+}
+
+function Resolve-TauriPortableExecutablePath {
+  param(
+    [Parameter(Mandatory = $true)][string]$RepoRoot
+  )
+
+  $releaseDir = Join-Path $RepoRoot "src-tauri\target\release"
+  if (-not (Test-Path $releaseDir)) {
+    throw "Tauri release directory not found: $releaseDir"
+  }
+
+  $cargoTomlPath = Join-Path $RepoRoot "src-tauri\Cargo.toml"
+  $cargoPackageName = Get-CargoPackageName -CargoTomlPath $cargoTomlPath
+  if (-not [string]::IsNullOrWhiteSpace($cargoPackageName)) {
+    $candidatePath = Join-Path $releaseDir ($cargoPackageName + ".exe")
+    if (Test-Path $candidatePath) {
+      return $candidatePath
+    }
+  }
+
+  $fallbackExecutable = Get-ChildItem -Path $releaseDir -File -Filter "*.exe" |
+    Where-Object { $_.Name -notlike "*-setup.exe" } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+
+  if ($fallbackExecutable) {
+    return $fallbackExecutable.FullName
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($cargoPackageName)) {
+    throw "Portable executable not found in $releaseDir. Expected cargo package binary: $cargoPackageName.exe"
+  }
+
+  throw "Portable executable not found in $releaseDir."
+}
+
 function Invoke-SharedRelease {
   param(
     [Parameter(Mandatory = $true)][string]$AppRoot,
@@ -125,7 +196,7 @@ function Invoke-SharedRelease {
     $buildId = if (Test-Path $buildIdPath) {
       (Get-Content -Path $buildIdPath -Raw).Trim()
     } else {
-      "unknown"
+      $null
     }
 
     Write-Host "[2/6] Building desktop app (NSIS)..."
@@ -134,10 +205,7 @@ function Invoke-SharedRelease {
       throw "npx tauri build --bundles nsis failed with exit code $LASTEXITCODE"
     }
 
-    $portableSource = Join-Path $repoRoot "src-tauri\target\release\app.exe"
-    if (-not (Test-Path $portableSource)) {
-      throw "Portable source not found: $portableSource"
-    }
+    $portableSource = Resolve-TauriPortableExecutablePath -RepoRoot $repoRoot
 
     $nsisDir = Join-Path $repoRoot "src-tauri\target\release\bundle\nsis"
     $setupSource = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" |
@@ -172,6 +240,10 @@ function Invoke-SharedRelease {
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $releaseDir = Join-Path $repoRoot ("release\" + $timestamp + "_v" + $version + "_" + $commit)
     New-Item -Path $releaseDir -ItemType Directory -Force | Out-Null
+
+    if ([string]::IsNullOrWhiteSpace($buildId)) {
+      $buildId = "$version-$commit-$($timestamp.Replace('-', ''))"
+    }
 
     $portableName = $PortableNameTemplate -f $version, $commit
     $setupName = $SetupNameTemplate -f $version, $commit
@@ -251,6 +323,39 @@ function Invoke-SharedRelease {
     $portableHash = (Get-FileHash -Path $portableTarget -Algorithm SHA256).Hash
     $setupHash = (Get-FileHash -Path $setupTarget -Algorithm SHA256).Hash
 
+    $appRelativePath = if ($gitRoot) {
+      Get-ReleaseRelativePath -BasePath $gitRoot -TargetPath $repoRoot
+    } else {
+      Split-Path -Path $repoRoot -Leaf
+    }
+    $releaseRelativeDir = Get-ReleaseRelativePath -BasePath $repoRoot -TargetPath $releaseDir
+    $portableRelativePath = Get-ReleaseRelativePath -BasePath $repoRoot -TargetPath $portableTarget
+    $setupRelativePath = Get-ReleaseRelativePath -BasePath $repoRoot -TargetPath $setupTarget
+
+    $latestPointerPath = Join-Path $repoRoot "LATEST_RELEASE_POINTER.txt"
+    @(
+      "format=magnum-release-pointer-v1"
+      "app_path=$appRelativePath"
+      "updated_at=$(Get-Date -Format o)"
+      "latest_release_dir=$releaseRelativeDir"
+      "portable_exe=$portableRelativePath"
+      "setup_exe=$setupRelativePath"
+      "build_id=$buildId"
+      "portable_sha256=$portableHash"
+      "setup_sha256=$setupHash"
+      "legacy_copy=$(-not $NoLegacyCopy)"
+    ) | Set-Content -Path $latestPointerPath -Encoding UTF8
+
+    $openPortableInfoPath = Join-Path $releaseDir "OPEN_THIS_PORTABLE.txt"
+    @(
+      "Bu release icin test edilecek dogru portable EXE:"
+      $portableTarget
+      ""
+      "setup_exe=$setupTarget"
+      "build_id=$buildId"
+      "pointer_file=$latestPointerPath"
+    ) | Set-Content -Path $openPortableInfoPath -Encoding UTF8
+
     Write-Host "[6/6] Done."
     Write-Host ""
     Write-Host "Release folder: $releaseDir"
@@ -258,6 +363,8 @@ function Invoke-SharedRelease {
     Write-Host "Portable SHA256: $portableHash"
     Write-Host "Setup: $setupTarget"
     Write-Host "Setup SHA256: $setupHash"
+    Write-Host "Open-this marker: $openPortableInfoPath"
+    Write-Host "Latest pointer: $latestPointerPath"
 
     return [PSCustomObject]@{
       RepoRoot = $repoRoot
@@ -275,6 +382,8 @@ function Invoke-SharedRelease {
       LegacySetupPath = $legacySetupPath
       NoLegacyCopy = [bool]$NoLegacyCopy
       InfoPath = $infoPath
+      LatestPointerPath = $latestPointerPath
+      OpenPortableInfoPath = $openPortableInfoPath
       PortableHash = $portableHash
       SetupHash = $setupHash
     }

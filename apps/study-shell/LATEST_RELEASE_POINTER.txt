@@ -1,0 +1,10 @@
+format=magnum-release-pointer-v1
+app_path=apps/study-shell
+updated_at=2026-03-21T00:49:17.0370806+03:00
+latest_release_dir=release/20260321-004916_v0.1.0_7ca8ebd
+portable_exe=release/20260321-004916_v0.1.0_7ca8ebd/Study_Shell_Portable_v0.1.0_7ca8ebd.exe
+setup_exe=release/20260321-004916_v0.1.0_7ca8ebd/Study_Shell_Kurulum_v0.1.0_7ca8ebd.exe
+build_id=0.1.0-7ca8ebd-20260320214833
+portable_sha256=7D929228C8A9F24D057CE6F55A4247E79B37E1296EB219251CC0660A4F41AF32
+setup_sha256=5F1F5B1E60485F6BB21EDE9BC3FF43275A00CFD46A1B9D1928567E853DB3D92A
+legacy_copy=False

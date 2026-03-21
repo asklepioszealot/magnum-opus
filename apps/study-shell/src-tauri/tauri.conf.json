@@ -1,0 +1,36 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Study Shell",
+  "version": "0.1.0",
+  "identifier": "com.asklepioszealot.study-shell",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost",
+    "beforeBuildCommand": "node build.mjs"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Study Shell",
+        "width": 1280,
+        "height": 860,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../../flashcards/src-tauri/icons/32x32.png",
+      "../../flashcards/src-tauri/icons/128x128.png",
+      "../../flashcards/src-tauri/icons/128x128@2x.png",
+      "../../flashcards/src-tauri/icons/icon.icns",
+      "../../flashcards/src-tauri/icons/icon.ico"
+    ]
+  }
+}

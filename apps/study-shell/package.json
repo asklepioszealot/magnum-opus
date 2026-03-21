@@ -1,0 +1,22 @@
+{
+  "name": "study-shell",
+  "version": "0.1.0",
+  "description": "Shell/orchestration layer for shared study flows in the Magnum Opus workspace.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npm run build:dist && npx tauri dev",
+    "build:dist": "node build.mjs",
+    "build:desktop": "npx tauri build --bundles nsis",
+    "release": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/build-release.ps1",
+    "release:no-legacy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/build-release.ps1 -NoLegacyCopy",
+    "release:with-legacy": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/build-release.ps1",
+    "test:smoke": "npm run build:dist && npx playwright test",
+    "test": "npm run test:smoke"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@tauri-apps/cli": "^2.10.1"
+  }
+}
