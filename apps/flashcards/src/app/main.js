@@ -6,6 +6,9 @@
       const SELECTED_SETS_KEY = storageKeys.key("selected_sets");
       const ASSESSMENTS_KEY = storageKeys.key("assessments");
       const AUTO_ADVANCE_KEY = storageKeys.key("auto_advance");
+      const SHELL_LAUNCH_KEY = storageKeys.key("shell_launch");
+      const SHELL_RETURN_PREVIEW_KEY = storageKeys.key("shell_return_preview");
+      const PENDING_NATIVE_SHELL_LAUNCH_KEY = "__MAGNUM_PENDING_STUDY_SHELL_LAUNCH__";
       const LEGACY_STATE_KEY = storage.rawKeys.versionedKey("flashcards_state", 6);
 
       function getSetStorageKey(setId) {
@@ -812,7 +815,7 @@
       }
 
       // ═══ SCORE DISPLAY ═══
-      function updateScoreDisplay() {
+      function getAssessmentCounts() {
         let know = 0,
           review = 0,
           dunno = 0;
@@ -822,8 +825,48 @@
           else if (status === "review") review++;
           else if (status === "dunno") dunno++;
         });
+
         const total = allFlashcards.length;
         const assessed = know + review + dunno;
+        return { know, review, dunno, total, assessed };
+      }
+
+      function buildShellReturnSummary() {
+        const counts = getAssessmentCounts();
+        return {
+          headline: `${counts.assessed}/${counts.total} kart değerlendirildi`,
+          detail:
+            `Biliyorum ${counts.know}, tekrar ${counts.review}, bilmiyorum ${counts.dunno}`,
+          metrics: counts,
+        };
+      }
+
+      function refreshShellReturnBanner() {
+        if (
+          !window.FlashcardsShellLaunch ||
+          typeof window.FlashcardsShellLaunch.renderReturnBanner !== "function"
+        ) {
+          return null;
+        }
+
+        const container = document.getElementById("app-container");
+        if (!container) {
+          return null;
+        }
+
+        return window.FlashcardsShellLaunch.renderReturnBanner(
+          buildShellReturnSummary(),
+          { container },
+        );
+      }
+
+      function updateScoreDisplay() {
+        const counts = getAssessmentCounts();
+        const know = counts.know;
+        const review = counts.review;
+        const dunno = counts.dunno;
+        const total = counts.total;
+        const assessed = counts.assessed;
         const pct = total > 0 ? Math.round((assessed / total) * 100) : 0;
         document.getElementById("score-know").textContent = know;
         document.getElementById("score-review").textContent = review;
@@ -842,6 +885,7 @@
         if (knowFill) knowFill.style.width = `${knowPct}%`;
         if (reviewFill) reviewFill.style.width = `${reviewPct}%`;
         if (dunnoFill) dunnoFill.style.width = `${dunnoPct}%`;
+        refreshShellReturnBanner();
       }
 
       // ═══ FILTER ═══
@@ -1187,7 +1231,78 @@
         });
       }
 
+      function applyShellLaunchPayload(shellLaunchPayload) {
+        if (
+          shellLaunchPayload &&
+          window.FlashcardsShellLaunch &&
+          typeof window.FlashcardsShellLaunch.renderBanner === "function"
+        ) {
+          window.FlashcardsShellLaunch.renderBanner(shellLaunchPayload);
+        }
+
+        if (
+          shellLaunchPayload &&
+          window.FlashcardsShellLaunch &&
+          typeof window.FlashcardsShellLaunch.renderReturnBanner === "function"
+        ) {
+          window.FlashcardsShellLaunch.renderReturnBanner(
+            buildShellReturnSummary(),
+            { container: document.getElementById("app-container") },
+          );
+          return;
+        }
+
+        storage.removeItem(SHELL_RETURN_PREVIEW_KEY);
+      }
+
+      function applyNativeShellLaunchPayload(encodedPayload) {
+        if (
+          !window.FlashcardsShellLaunch ||
+          typeof window.FlashcardsShellLaunch.syncNative !== "function"
+        ) {
+          return null;
+        }
+
+        const shellLaunchPayload =
+          window.FlashcardsShellLaunch.syncNative(encodedPayload);
+        applyShellLaunchPayload(shellLaunchPayload);
+        return shellLaunchPayload;
+      }
+
+      function consumePendingNativeShellLaunch() {
+        const pendingLaunch = window[PENDING_NATIVE_SHELL_LAUNCH_KEY];
+        if (!pendingLaunch) {
+          return null;
+        }
+
+        delete window[PENDING_NATIVE_SHELL_LAUNCH_KEY];
+
+        const encodedPayload =
+          pendingLaunch && typeof pendingLaunch === "object"
+            ? pendingLaunch.encodedPayload
+            : pendingLaunch;
+        return applyNativeShellLaunchPayload(
+          typeof encodedPayload === "string" ? encodedPayload : "",
+        );
+      }
+
+      window.addEventListener("magnum-study-shell-launch", (event) => {
+        applyNativeShellLaunchPayload(
+          event && event.detail ? event.detail.encodedPayload : "",
+        );
+      });
+
       // Initialization routine
+      const shellLaunchPayload =
+        window.FlashcardsShellLaunch &&
+        typeof window.FlashcardsShellLaunch.sync === "function"
+          ? window.FlashcardsShellLaunch.sync()
+          : storage.readJson(SHELL_LAUNCH_KEY);
+      if (shellLaunchPayload) {
+        applyShellLaunchPayload(shellLaunchPayload);
+      } else {
+        applyShellLaunchPayload(consumePendingNativeShellLaunch());
+      }
       renderBuildMeta();
       loadState();
       showSetManager();

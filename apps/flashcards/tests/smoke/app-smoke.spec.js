@@ -7,6 +7,15 @@ function appUrl() {
   return pathToFileURL(indexPath).toString();
 }
 
+function withStudyShellLaunch(url, payload) {
+  const launchUrl = new URL(url);
+  launchUrl.searchParams.set(
+    "studyShellLaunch",
+    encodeURIComponent(JSON.stringify(payload)),
+  );
+  return launchUrl.toString();
+}
+
 function legacyCardId(question) {
   let h = 0;
   for (let i = 0; i < question.length; i++) {
@@ -435,5 +444,216 @@ test.describe("Flashcards smoke", () => {
       JSON.parse(localStorage.getItem("fc_assessments") || "{}"),
     );
     expect(snapshot["set:stable::idx:0"]).toBe("know");
+  });
+
+  test("study shell launch payload is consumed and surfaced in the set manager", async ({
+    page,
+  }) => {
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "flashcards",
+      appPath: "apps/flashcards",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-20T09:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-flashcards",
+        createdAt: "2026-03-20T09:00:00.000Z",
+        updatedAt: "2026-03-20T09:00:00.000Z",
+        focus: "Pediatri tekrar turu",
+        durationMinutes: 25,
+        notes: "Zayif kartlari oncele",
+        preferredFlowId: "flashcards",
+        activeFlowId: "flashcards",
+        transitions: [],
+      },
+    };
+
+    await page.goto(withStudyShellLaunch(appUrl(), launchPayload));
+
+    await expect(page.locator("#flashcards-shell-launch-banner")).toBeVisible();
+    await expect(page.locator("#flashcards-shell-launch-banner")).toContainText(
+      "Study Shell oturumu baglandi: Flashcards",
+    );
+    await expect(page.locator("#flashcards-shell-launch-banner")).toContainText(
+      "Pediatri tekrar turu",
+    );
+    await expect(page.locator("#flashcards-shell-launch-banner")).toContainText(
+      "apps/study-shell",
+    );
+
+    await expect.poll(async () =>
+      page.evaluate(() => window.location.search),
+    ).toBe("");
+
+    const storedPayload = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("fc_shell_launch") || "null"),
+    );
+    expect(storedPayload).not.toBeNull();
+    expect(storedPayload.flowId).toBe("flashcards");
+    expect(storedPayload.session.focus).toBe("Pediatri tekrar turu");
+  });
+
+  test("native desktop launch event is consumed without URL navigation", async ({
+    page,
+  }) => {
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "flashcards",
+      appPath: "apps/flashcards",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-21T01:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-flashcards-native-launch",
+        createdAt: "2026-03-21T01:00:00.000Z",
+        updatedAt: "2026-03-21T01:00:00.000Z",
+        focus: "Native startup event flashcards",
+        durationMinutes: 15,
+        notes: "no startup navigate",
+        preferredFlowId: "flashcards",
+        activeFlowId: "flashcards",
+        transitions: [],
+      },
+    };
+
+    await clearStorage(page);
+    await page.goto(appUrl());
+
+    await page.evaluate((payload) => {
+      const encodedPayload =
+        window.MagnumSharedStudy.encodeLaunchPayload(payload);
+      window.dispatchEvent(
+        new CustomEvent("magnum-study-shell-launch", {
+          detail: { encodedPayload },
+        }),
+      );
+    }, launchPayload);
+
+    await expect(page.locator("#flashcards-shell-launch-banner")).toBeVisible();
+    await expect(page.locator("#flashcards-shell-launch-banner")).toContainText(
+      "Native startup event flashcards",
+    );
+    await expect.poll(async () => page.evaluate(() => window.location.search)).toBe(
+      "",
+    );
+  });
+
+  test("study shell return preview updates from flashcard progress", async ({
+    page,
+  }) => {
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "flashcards",
+      appPath: "apps/flashcards",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-20T09:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-flashcards-return",
+        createdAt: "2026-03-20T09:00:00.000Z",
+        updatedAt: "2026-03-20T09:00:00.000Z",
+        focus: "Return loop flashcards",
+        durationMinutes: 30,
+        notes: "return to shell",
+        preferredFlowId: "flashcards",
+        activeFlowId: "flashcards",
+        transitions: [],
+      },
+    };
+
+    await seedLocalSets(page, {
+      sets: {
+        demo: {
+          setName: "Return Demo",
+          fileName: "return-demo.json",
+          cards: [{ q: "Dönüş kartı?", a: "Cevap", subject: "Genel" }],
+        },
+      },
+      selectedSetIds: ["demo"],
+    });
+
+    await page.goto(withStudyShellLaunch(appUrl(), launchPayload));
+    await page.locator("#start-btn").click();
+    await assessCurrentCard(page, "know");
+
+    await expect(page.locator("#flashcards-shell-return-link")).toBeVisible();
+    await expect(page.locator("#flashcards-shell-return-link")).toHaveAttribute(
+      "href",
+      /studyShellReturn=/,
+    );
+
+    const previewPayload = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("fc_shell_return_preview") || "null"),
+    );
+    expect(previewPayload).not.toBeNull();
+    expect(previewPayload.summary.metrics.know).toBe(1);
+    expect(previewPayload.summary.metrics.assessed).toBe(1);
+  });
+
+  test("desktop return bridge invokes the native study-shell command", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      window.__TAURI_INTERNALS__ = {
+        invoke: async (command, payload) => {
+          window.__flashcardsReturnCall = { command, payload };
+          return {
+            mode: "desktop_executable",
+            target: "D:\\apps\\study-shell.exe",
+          };
+        },
+      };
+    });
+
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "flashcards",
+      appPath: "apps/flashcards",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-20T09:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-flashcards-native-return",
+        createdAt: "2026-03-20T09:00:00.000Z",
+        updatedAt: "2026-03-20T09:00:00.000Z",
+        focus: "Desktop native return flashcards",
+        durationMinutes: 20,
+        notes: "native return",
+        preferredFlowId: "flashcards",
+        activeFlowId: "flashcards",
+        transitions: [],
+      },
+    };
+
+    await seedLocalSets(page, {
+      sets: {
+        demo: {
+          setName: "Native Return Demo",
+          fileName: "native-return-demo.json",
+          cards: [{ q: "Native dönüş kartı?", a: "Cevap", subject: "Genel" }],
+        },
+      },
+      selectedSetIds: ["demo"],
+    });
+
+    await page.goto(withStudyShellLaunch(appUrl(), launchPayload));
+    await page.locator("#start-btn").click();
+    await assessCurrentCard(page, "know");
+    await page.locator("#flashcards-shell-return-link").click();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => window.__flashcardsReturnCall?.command || ""),
+      )
+      .toBe("return_to_study_shell");
+
+    const returnCall = await page.evaluate(() => window.__flashcardsReturnCall);
+    expect(returnCall.payload.request.returnPath).toBe("apps/study-shell");
+    expect(returnCall.payload.request.encodedPayload).toContain("%7B");
   });
 });

@@ -7,6 +7,15 @@ function appUrl() {
   return pathToFileURL(indexPath).toString();
 }
 
+function withStudyShellLaunch(url, payload) {
+  const launchUrl = new URL(url);
+  launchUrl.searchParams.set(
+    "studyShellLaunch",
+    encodeURIComponent(JSON.stringify(payload)),
+  );
+  return launchUrl.toString();
+}
+
 function legacyQuestionId(questionText, subject = "Genel") {
   let hash = 0;
   const text = `${questionText}${subject}`;
@@ -277,5 +286,232 @@ test.describe("MCQ smoke", () => {
     expect(migratedAnswers.map(([, value]) => value)).toEqual([1, 1]);
     expect(migratedVisibility).toHaveLength(2);
     expect(migratedVisibility.map(([, value]) => value)).toEqual([true, true]);
+  });
+
+  test("study shell launch payload is consumed and surfaced in the set manager", async ({
+    page,
+  }) => {
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "mcq",
+      appPath: "apps/mcq",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-20T09:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-mcq",
+        createdAt: "2026-03-20T09:00:00.000Z",
+        updatedAt: "2026-03-20T09:00:00.000Z",
+        focus: "Karma test oturumu",
+        durationMinutes: 40,
+        notes: "Kardiyoloji ve cocuk acil",
+        preferredFlowId: "mcq",
+        activeFlowId: "mcq",
+        transitions: [],
+      },
+    };
+
+    await page.goto(withStudyShellLaunch(appUrl(), launchPayload));
+
+    await expect(page.locator("#mcq-shell-launch-banner")).toBeVisible();
+    await expect(page.locator("#mcq-shell-launch-banner")).toContainText(
+      "Study Shell oturumu baglandi: MCQ",
+    );
+    await expect(page.locator("#mcq-shell-launch-banner")).toContainText(
+      "Karma test oturumu",
+    );
+    await expect(page.locator("#mcq-shell-launch-banner")).toContainText(
+      "apps/study-shell",
+    );
+
+    await expect.poll(async () =>
+      page.evaluate(() => window.location.search),
+    ).toBe("");
+
+    const storedPayload = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("mc_shell_launch") || "null"),
+    );
+    expect(storedPayload).not.toBeNull();
+    expect(storedPayload.flowId).toBe("mcq");
+    expect(storedPayload.session.notes).toBe("Kardiyoloji ve cocuk acil");
+  });
+
+  test("native desktop launch event is consumed without URL navigation", async ({
+    page,
+  }) => {
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "mcq",
+      appPath: "apps/mcq",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-21T01:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-mcq-native-launch",
+        createdAt: "2026-03-21T01:00:00.000Z",
+        updatedAt: "2026-03-21T01:00:00.000Z",
+        focus: "Native startup event mcq",
+        durationMinutes: 18,
+        notes: "no startup navigate",
+        preferredFlowId: "mcq",
+        activeFlowId: "mcq",
+        transitions: [],
+      },
+    };
+
+    await clearStorage(page);
+    await page.goto(appUrl());
+
+    await page.evaluate((payload) => {
+      const encodedPayload =
+        window.MagnumSharedStudy.encodeLaunchPayload(payload);
+      window.dispatchEvent(
+        new CustomEvent("magnum-study-shell-launch", {
+          detail: { encodedPayload },
+        }),
+      );
+    }, launchPayload);
+
+    await expect(page.locator("#mcq-shell-launch-banner")).toBeVisible();
+    await expect(page.locator("#mcq-shell-launch-banner")).toContainText(
+      "Native startup event mcq",
+    );
+    await expect.poll(async () => page.evaluate(() => window.location.search)).toBe(
+      "",
+    );
+  });
+
+  test("study shell return preview updates from quiz progress", async ({
+    page,
+  }) => {
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "mcq",
+      appPath: "apps/mcq",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-20T09:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-mcq-return",
+        createdAt: "2026-03-20T09:00:00.000Z",
+        updatedAt: "2026-03-20T09:00:00.000Z",
+        focus: "Return loop mcq",
+        durationMinutes: 35,
+        notes: "return to shell",
+        preferredFlowId: "mcq",
+        activeFlowId: "mcq",
+        transitions: [],
+      },
+    };
+
+    await seedLocalSets(page, {
+      sets: {
+        demo: {
+          setName: "Return Demo",
+          fileName: "return-demo.json",
+          questions: [
+            {
+              q: "Dönüş sorusu?",
+              options: ["A", "B", "C", "D"],
+              correct: 0,
+              subject: "Genel",
+              explanation: "A",
+            },
+          ],
+        },
+      },
+      selectedSetIds: ["demo"],
+    });
+
+    await page.goto(withStudyShellLaunch(appUrl(), launchPayload));
+    await page.locator("#start-btn").click();
+    await selectOption(page, 0);
+
+    await expect(page.locator("#mcq-shell-return-link")).toBeVisible();
+    await expect(page.locator("#mcq-shell-return-link")).toHaveAttribute(
+      "href",
+      /studyShellReturn=/,
+    );
+
+    const previewPayload = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("mc_shell_return_preview") || "null"),
+    );
+    expect(previewPayload).not.toBeNull();
+    expect(previewPayload.summary.metrics.correct).toBe(1);
+    expect(previewPayload.summary.metrics.answered).toBe(1);
+  });
+
+  test("desktop return bridge invokes the native study-shell command", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      window.__TAURI_INTERNALS__ = {
+        invoke: async (command, payload) => {
+          window.__mcqReturnCall = { command, payload };
+          return {
+            mode: "desktop_executable",
+            target: "D:\\apps\\study-shell.exe",
+          };
+        },
+      };
+    });
+
+    const launchPayload = {
+      kind: "study-shell-launch",
+      version: 1,
+      flowId: "mcq",
+      appPath: "apps/mcq",
+      returnPath: "apps/study-shell",
+      createdAt: "2026-03-20T09:00:00.000Z",
+      session: {
+        version: 1,
+        sessionId: "session-shell-mcq-native-return",
+        createdAt: "2026-03-20T09:00:00.000Z",
+        updatedAt: "2026-03-20T09:00:00.000Z",
+        focus: "Desktop native return mcq",
+        durationMinutes: 25,
+        notes: "native return",
+        preferredFlowId: "mcq",
+        activeFlowId: "mcq",
+        transitions: [],
+      },
+    };
+
+    await seedLocalSets(page, {
+      sets: {
+        demo: {
+          setName: "Native Return Demo",
+          fileName: "native-return-demo.json",
+          questions: [
+            {
+              q: "Native dönüş sorusu?",
+              options: ["A", "B", "C", "D"],
+              correct: 0,
+              subject: "Genel",
+              explanation: "A",
+            },
+          ],
+        },
+      },
+      selectedSetIds: ["demo"],
+    });
+
+    await page.goto(withStudyShellLaunch(appUrl(), launchPayload));
+    await page.locator("#start-btn").click();
+    await selectOption(page, 0);
+    await page.locator("#mcq-shell-return-link").click();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => window.__mcqReturnCall?.command || ""),
+      )
+      .toBe("return_to_study_shell");
+
+    const returnCall = await page.evaluate(() => window.__mcqReturnCall);
+    expect(returnCall.payload.request.returnPath).toBe("apps/study-shell");
+    expect(returnCall.payload.request.encodedPayload).toContain("%7B");
   });
 });

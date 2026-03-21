@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Shell</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --color-bg: #f3f4f6;
+        --color-surface: rgba(255, 255, 255, 0.85);
+        --color-surface-strong: #ffffff;
+        --color-text: #111827;
+        --color-text-muted: #4b5563;
+        --color-border: rgba(17, 24, 39, 0.12);
+        --color-accent: #0f766e;
+        --color-accent-soft: rgba(15, 118, 110, 0.12);
+        --color-accent-strong: #134e4a;
+        --color-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+        --color-highlight: #d97706;
+      }
+
+      [data-theme="dark"] {
+        --color-bg: #0f172a;
+        --color-surface: rgba(15, 23, 42, 0.88);
+        --color-surface-strong: #111827;
+        --color-text: #f9fafb;
+        --color-text-muted: #cbd5e1;
+        --color-border: rgba(226, 232, 240, 0.12);
+        --color-accent: #2dd4bf;
+        --color-accent-soft: rgba(45, 212, 191, 0.14);
+        --color-accent-strong: #99f6e4;
+        --color-shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
+        --color-highlight: #fbbf24;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--color-text);
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(217, 119, 6, 0.18), transparent 28%),
+          var(--color-bg);
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 32px auto 48px;
+      }
+
+      .hero,
+      .panel {
+        background: var(--color-surface);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid var(--color-border);
+        border-radius: 28px;
+        box-shadow: var(--color-shadow);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+        gap: 24px;
+        padding: 28px;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--color-accent);
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 5vw, 4.2rem);
+        line-height: 0.94;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-copy p,
+      .status-copy,
+      .flow-description,
+      .flow-role,
+      .panel p,
+      li {
+        color: var(--color-text-muted);
+      }
+
+      .hero-copy p {
+        margin: 18px 0 0;
+        max-width: 58ch;
+        font-size: 1.02rem;
+      }
+
+      .hero-meta {
+        display: grid;
+        gap: 16px;
+        align-content: start;
+      }
+
+      .meta-card {
+        background: var(--color-surface-strong);
+        border: 1px solid var(--color-border);
+        border-radius: 22px;
+        padding: 18px 18px 20px;
+      }
+
+      .meta-label {
+        display: block;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin-bottom: 10px;
+      }
+
+      .meta-value {
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.5;
+      }
+
+      .theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: var(--color-surface-strong);
+        border: 1px solid var(--color-border);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .theme-toggle input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--color-accent);
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 24px;
+        margin-top: 24px;
+      }
+
+      .panel {
+        padding: 24px;
+      }
+
+      .panel h2 {
+        margin: 0 0 6px;
+        font-size: 1.4rem;
+      }
+
+      .panel p {
+        margin: 0 0 20px;
+      }
+
+      .flow-list {
+        display: grid;
+        gap: 18px;
+      }
+
+      .flow-card {
+        border: 1px solid var(--color-border);
+        border-radius: 22px;
+        background: var(--color-surface-strong);
+        padding: 20px;
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          box-shadow 180ms ease;
+      }
+
+      .flow-card[data-preferred="true"] {
+        border-color: rgba(15, 118, 110, 0.4);
+        box-shadow: 0 14px 28px rgba(15, 118, 110, 0.12);
+        transform: translateY(-2px);
+      }
+
+      .flow-card[data-active="true"] {
+        outline: 2px solid rgba(217, 119, 6, 0.25);
+      }
+
+      .flow-card-header,
+      .flow-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .flow-card h3 {
+        margin: 4px 0 0;
+        font-size: 1.35rem;
+      }
+
+      .flow-tagline {
+        margin: 0;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--color-highlight);
+      }
+
+      .flow-badge {
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: var(--color-accent-soft);
+        color: var(--color-accent-strong);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .flow-description,
+      .flow-role {
+        margin: 14px 0 0;
+      }
+
+      .flow-actions {
+        display: inline-flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .flow-highlights {
+        margin: 16px 0 18px;
+        padding-left: 20px;
+      }
+
+      .flow-highlights li + li,
+      .scope-list li + li {
+        margin-top: 8px;
+      }
+
+      code {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.06);
+        color: var(--color-text);
+        font-size: 0.84rem;
+      }
+
+      [data-theme="dark"] code {
+        background: rgba(148, 163, 184, 0.12);
+      }
+
+      .btn {
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 10px 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        background: var(--color-accent);
+        color: white;
+      }
+
+      .btn.btn-secondary {
+        background: transparent;
+        border-color: var(--color-border);
+        color: var(--color-text);
+      }
+
+      .scope-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .field-group {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field-group label {
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+
+      .field-group input,
+      .field-group textarea,
+      .field-group select {
+        width: 100%;
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        background: var(--color-surface-strong);
+        color: var(--color-text);
+        font: inherit;
+        padding: 12px 14px;
+      }
+
+      .field-group textarea {
+        min-height: 108px;
+        resize: vertical;
+      }
+
+      .session-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .session-actions,
+      .handoff-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .scope-block {
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-strong);
+      }
+
+      .scope-block h3 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+
+      .scope-list {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .build-meta {
+        margin-top: 20px;
+        font-size: 0.84rem;
+        color: var(--color-text-muted);
+      }
+
+      .workspace-card {
+        margin-top: 18px;
+      }
+
+      .workspace-card[hidden],
+      .workspace-empty[hidden] {
+        display: none;
+      }
+
+      .workspace-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+
+      .workspace-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .workspace-empty {
+        margin-top: 18px;
+        padding: 18px;
+        border: 1px dashed var(--color-border);
+        border-radius: 18px;
+        color: var(--color-text-muted);
+        background: var(--color-surface-strong);
+      }
+
+      @media (max-width: 900px) {
+        .hero,
+        .content {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          width: min(100% - 20px, 1180px);
+          margin-top: 16px;
+        }
+
+        .hero,
+        .panel {
+          border-radius: 24px;
+          padding: 20px;
+        }
+
+        .flow-card-header,
+        .flow-footer {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Phase B Vertical Slice</p>
+          <h1>Study Shell</h1>
+          <p>
+            Shared study orchestration starts here. This shell catalogs the current
+            Flashcards and MCQ flows, remembers the preferred launch mode, and
+            establishes the shared runtime seam for later cross-app study journeys.
+          </p>
+        </div>
+
+        <div class="hero-meta">
+          <label class="theme-toggle" for="theme-toggle">
+            <input id="theme-toggle" type="checkbox" />
+            <span>Koyu tema</span>
+          </label>
+
+          <div class="meta-card">
+            <span class="meta-label">Shell Status</span>
+            <div id="shell-status" class="meta-value status-copy"></div>
+          </div>
+
+          <div class="meta-card">
+            <span class="meta-label">Son tercih değişimi</span>
+            <div id="last-updated" class="meta-value"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content">
+        <section class="panel">
+          <h2>Study Flow Catalog</h2>
+          <p>
+            Shell-owned catalog entries define what is shared, what stays app-specific,
+            and where future handoff work should plug in.
+          </p>
+          <div id="flow-list" class="flow-list"></div>
+          <div id="workspace-empty-state" class="workspace-empty">
+            Bir akış açıldığında shell burada onun çalışma yüzeyini ve geri dönüş
+            noktasını korur.
+          </div>
+            <section id="active-flow-workspace" class="scope-block workspace-card" hidden>
+            <div class="workspace-header">
+              <h3 id="workspace-title"></h3>
+              <div class="flow-actions">
+                <button
+                  type="button"
+                  class="btn"
+                  data-testid="launch-active-flow"
+                  data-action="launch-active-flow"
+                >
+                  Masaüstünde aç
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-action="close-workspace"
+                >
+                  Kataloğa dön
+                </button>
+              </div>
+            </div>
+            <p id="workspace-description"></p>
+            <p id="launch-feedback" class="status-copy">
+              Masaüstü launch Tauri içinden child app executable açar.
+            </p>
+            <p>
+              Uygulama hedefi:
+              <code id="workspace-app-path"></code>
+            </p>
+            <ul id="workspace-checklist" class="scope-list"></ul>
+            <div class="field-group">
+              <label for="launch-url">Launch URL</label>
+              <textarea id="launch-url" readonly></textarea>
+            </div>
+            <div class="field-group">
+              <label for="launch-payload">Launch payload</label>
+              <textarea id="launch-payload" readonly></textarea>
+            </div>
+          </section>
+          <div id="build-meta" class="build-meta"></div>
+        </section>
+
+        <aside class="panel">
+          <h2>Scope Guardrails</h2>
+          <p>
+            This slice sets boundaries so Phase B can extend safely from the Phase A
+            monorepo baseline.
+          </p>
+
+          <div class="scope-grid">
+            <section class="scope-block">
+              <h3>Shell Scope</h3>
+              <ul id="shell-scope" class="scope-list"></ul>
+            </section>
+
+            <section class="scope-block">
+              <h3>App Boundary</h3>
+              <ul id="app-boundary" class="scope-list"></ul>
+            </section>
+
+            <section class="scope-block">
+              <h3>Session Brief</h3>
+              <div class="session-grid">
+                <div class="field-group">
+                  <label for="session-focus">Oturum odağı</label>
+                  <input id="session-focus" type="text" placeholder="Örn. pediatri tekrar" />
+                </div>
+                <div class="field-group">
+                  <label for="session-duration">Süre (dakika)</label>
+                  <input id="session-duration" type="number" min="5" max="240" step="5" value="30" />
+                </div>
+                <div class="field-group">
+                  <label for="session-notes">Shell notları</label>
+                  <textarea id="session-notes" placeholder="Akışlar arasında taşınacak kısa bağlam"></textarea>
+                </div>
+                <div class="session-actions">
+                  <button type="button" class="btn" data-action="save-session">
+                    Oturumu kaydet
+                  </button>
+                </div>
+                <p id="session-status"></p>
+              </div>
+            </section>
+
+            <section class="scope-block">
+              <h3>Handoff Bundle</h3>
+              <div class="session-grid">
+                <div class="field-group">
+                  <label for="handoff-target">Handoff hedefi</label>
+                  <select id="handoff-target"></select>
+                </div>
+                <div class="field-group">
+                  <label for="handoff-reason">Geçiş nedeni</label>
+                  <input
+                    id="handoff-reason"
+                    type="text"
+                    placeholder="Örn. recall sonrası sınama"
+                  />
+                </div>
+                <div class="handoff-actions">
+                  <button type="button" class="btn" data-action="handoff-session">
+                    Handoff oluştur
+                  </button>
+                </div>
+                <div class="field-group">
+                  <label for="handoff-bundle">Dışa aktarılabilir bundle</label>
+                  <textarea id="handoff-bundle" readonly></textarea>
+                </div>
+                <div class="field-group">
+                  <label for="import-bundle-input">Bundle içe aktar</label>
+                  <textarea id="import-bundle-input"></textarea>
+                </div>
+                <div class="handoff-actions">
+                  <button type="button" class="btn btn-secondary" data-action="import-bundle">
+                    Bundle yükle
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="scope-block">
+              <h3>Orchestration Plan</h3>
+              <div class="session-grid">
+                <p id="orchestration-status"></p>
+                <ul id="orchestration-list" class="scope-list"></ul>
+                <div class="handoff-actions">
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-action="complete-current-step"
+                  >
+                    Mevcut adımı tamamla
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="scope-block">
+              <h3>Return Loop</h3>
+              <div class="session-grid">
+                <p id="return-loop-status">Henüz bir uygulama shell'e geri dönmedi.</p>
+                <ul id="return-loop-metrics" class="scope-list"></ul>
+              </div>
+            </section>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./vendor/shared-storage/browser-storage.js"></script>
+    <script src="./vendor/shared-ui/app-storage.js"></script>
+    <script src="./vendor/shared-ui/theme.js"></script>
+    <script src="./vendor/shared-study/session-handoff.js"></script>
+    <script src="./vendor/shared-study/orchestration.js"></script>
+    <script src="./vendor/shared-study/launch-contract.js"></script>
+    <script src="./vendor/shared-study/return-contract.js"></script>
+    <script src="./src/app/main.js"></script>
+  </body>
+</html>

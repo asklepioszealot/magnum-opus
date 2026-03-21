@@ -1,0 +1,10 @@
+format=magnum-release-pointer-v1
+app_path=apps/mcq
+updated_at=2026-03-21T00:01:02.5806750+03:00
+latest_release_dir=release/20260321-000100_v0.1.0_7ca8ebd
+portable_exe=release/20260321-000100_v0.1.0_7ca8ebd/MCQ_Test_Portable_v0.1.0_7ca8ebd.exe
+setup_exe=release/20260321-000100_v0.1.0_7ca8ebd/MCQ_Test_Kurulum_v0.1.0_7ca8ebd.exe
+build_id=0.1.0-7ca8ebd-20260321000100
+portable_sha256=587F5BCCC3DD1B33E5AF65A97C31F6A971AAD513D1404F11E830F046E9FFB2DE
+setup_sha256=782D3249EDDF55E32B8C3F8585310F8976D3836A1E718BC4408C4A7D51752893
+legacy_copy=False
